@@ -1,0 +1,26 @@
+{
+  "records": 1044615,
+  "teams": 11,
+  "product_specific_issue_labels": 73,
+  "companies": 3801,
+  "checks": {
+    "counts_ids_exact_text_uniqueness_and_dates": true,
+    "required_inputs_and_targets_present": true,
+    "one_product_issue_label_maps_to_one_team": true,
+    "routing_mapping_consistent": true,
+    "raw_narratives_and_source_fields_unchanged": true,
+    "no_conflicting_exact_text_groups_retained": true,
+    "retained_class_support_requirements": true,
+    "group_sizes_and_label_counts_correct": true,
+    "csv_parquet_roundtrip_all_columns": true,
+    "source_outcomes_and_mapping_totals_reconcile": true
+  },
+  "retained_template_groups_with_multiple_labels": 1991,
+  "template_groups_with_multiple_records": 30397,
+  "largest_template_group": 248,
+  "minimum_records_per_issue": 517,
+  "minimum_template_families_per_issue": 517,
+  "minimum_companies_per_issue": 27,
+  "minimum_months_per_issue": 24,
+  "scope": "Dataset construction validation only; no text preprocessing, EDA notebook, model training, or split assignment."
+}
