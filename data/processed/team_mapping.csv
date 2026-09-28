@@ -1,0 +1,12 @@
+team_id,team_name,product
+T01,Credit Reporting Team,Credit reporting or other personal consumer reports
+T02,Debt Collection Team,Debt collection
+T03,Credit Card Team,Credit card
+T04,Banking Accounts Team,Checking or savings account
+T05,Money Transfers & Digital Currency Team,"Money transfer, virtual currency, or money service"
+T06,Mortgage Team,Mortgage
+T07,Student Loan Team,Student loan
+T08,Vehicle Finance Team,Vehicle loan or lease
+T09,Personal & Short-Term Loans Team,"Payday loan, title loan, personal loan, or advance loan"
+T10,Prepaid Card Team,Prepaid card
+T11,Debt & Credit Management Team,Debt or credit management

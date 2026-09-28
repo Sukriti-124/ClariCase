@@ -1,0 +1,12 @@
+team_id,team_name,product,issue_labels,records,dataset_share,issue_coverage
+T01,Credit Reporting Team,Credit reporting or other personal consumer reports,8,645108,0.6175557502046208,0.9999937995262838
+T02,Debt Collection Team,Debt collection,7,122899,0.11765004331739444,1.0
+T03,Credit Card Team,Credit card,12,69943,0.06695576839314006,0.9953890161811376
+T04,Banking Accounts Team,Checking or savings account,5,76061,0.07281247158043873,0.9945474515546955
+T05,Money Transfers & Digital Currency Team,"Money transfer, virtual currency, or money service",10,48164,0.0461069389200806,0.9764820371421621
+T06,Mortgage Team,Mortgage,5,25641,0.0245458853261728,0.9783653846153846
+T07,Student Loan Team,Student loan,4,17505,0.016757369940121482,0.937449793819954
+T08,Vehicle Finance Team,Vehicle loan or lease,6,18274,0.017493526323095112,0.9586612107858566
+T09,Personal & Short-Term Loans Team,"Payday loan, title loan, personal loan, or advance loan",7,10052,0.009622683955332827,0.7785006195786865
+T10,Prepaid Card Team,Prepaid card,4,7343,0.007029384031437419,0.9823411371237458
+T11,Debt & Credit Management Team,Debt or credit management,5,3625,0.0034701780081656877,0.8865248226950354

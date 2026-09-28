@@ -1,0 +1,382 @@
+{
+  "title": "Consumer complaint routing dataset",
+  "version": "1.0",
+  "created_at_utc": "2026-09-26T14:05:09.269752+00:00",
+  "date_min": "2024-01-01",
+  "date_max": "2025-12-31",
+  "company_filter": null,
+  "sampling": "All eligible records; no sampling, oversampling, or synthetic data",
+  "target": "product_issue_id / product_issue_label; maps deterministically to team_id",
+  "input": "complaint_text only; other columns are labels, audit metadata, or split-group metadata",
+  "stats": {
+    "records": 1044615,
+    "companies": 3801,
+    "teams": 11,
+    "issue_labels": 73,
+    "leakage_groups": 999534,
+    "missing_sub_issue": 66513,
+    "first_date": "2024-01-01",
+    "last_date": "2025-12-31"
+  },
+  "narrative_candidate_outcomes": {
+    "retained": 1044615,
+    "identical_text_conflicting_product_issue": 568050,
+    "no_lexical_content": 789,
+    "duplicate_narrative": 415097,
+    "insufficient_issue_support": 7884
+  },
+  "source_rows_scanned": 8643971,
+  "source_rows_in_date_range": 8177233,
+  "source_rows_without_narrative": 6140798,
+  "eligibility": {
+    "min_unique_narratives": 500,
+    "min_template_families": 500,
+    "min_active_months": 12,
+    "counts_are_after_exact_dedup_and_conflict_exclusion": true
+  },
+  "narrative_text_modified": false,
+  "train_validation_test_split_created": false,
+  "exact_duplicate_key": "SHA256(NFKC Unicode + whitespace collapse + strip + casefold); only the key is normalized",
+  "exact_duplicate_retention": "For a single product-issue label, keep the earliest complaint date then smallest numeric complaint ID",
+  "conflicting_text_policy": "Exclude every record when the exact normalized narrative has multiple product-issue labels; do not majority-relabel",
+  "leakage_group_key": "For narratives with >=20 meaningful word tokens, mask numeric/redaction tokens and ignore punctuation/whitespace/case; shorter narratives use exact key",
+  "leakage_group_limit": "Detects certain repeated templates, not every paraphrase or semantic near-duplicate; group members must stay together in later splits",
+  "missing_sub_issue_policy": "Retained; not all CFPB issues have sub-issues",
+  "archive_page": "https://www.consumerfinance.gov/foia-requests/foia-electronic-reading-room/cfpb-consumer-complaint-database-narratives-archive/",
+  "archives": [
+    {
+      "archive_number": 5,
+      "url": "https://files.consumerfinance.gov/f/documents/CCDB_Export_5_September_2023_through_March_2024.zip",
+      "archive_sha256": "993747363e52239e4762b804662d7f604f976a139de4f729f613329d3d8c7206",
+      "archive_bytes": 100880669,
+      "counts": {
+        "rows_scanned": 945532,
+        "outside_dates": 466738,
+        "within_dates": 478794,
+        "within_dates_and_products": 478794,
+        "narrative_candidates": 153193,
+        "missing_narrative": 325601
+      },
+      "products": {
+        "Credit reporting or other personal consumer reports": 109631,
+        "Money transfer, virtual currency, or money service": 2496,
+        "Mortgage": 3138,
+        "Debt collection": 15116,
+        "Checking or savings account": 6624,
+        "Vehicle loan or lease": 1883,
+        "Credit card": 9292,
+        "Payday loan, title loan, personal loan, or advance loan": 1320,
+        "Prepaid card": 1073,
+        "Student loan": 2307,
+        "Debt or credit management": 313
+      },
+      "parquet_bytes": 40397893,
+      "parquet_sha256": "999a90b8a1c8185c97cbebfb1bec8fa1e6c882feccc32bcfd44acaa5d1f0edfa",
+      "retrieved_at_utc": "2026-09-26T13:59:21.876445+00:00"
+    },
+    {
+      "archive_number": 6,
+      "url": "https://files.consumerfinance.gov/f/documents/CCDB_Export_6_April_2024_through_July_2024.zip",
+      "archive_sha256": "c8a6fb0d98287958e2c19b47e1a4211c4e43225d27123a3ca08d730a2b4ae0a5",
+      "archive_bytes": 77142558,
+      "counts": {
+        "rows_scanned": 839903,
+        "within_dates": 839903,
+        "within_dates_and_products": 839903,
+        "narrative_candidates": 276332,
+        "missing_narrative": 563571
+      },
+      "products": {
+        "Money transfer, virtual currency, or money service": 3105,
+        "Credit reporting or other personal consumer reports": 214019,
+        "Debt collection": 25047,
+        "Vehicle loan or lease": 2394,
+        "Mortgage": 3906,
+        "Debt or credit management": 469,
+        "Credit card": 12399,
+        "Checking or savings account": 9643,
+        "Payday loan, title loan, personal loan, or advance loan": 1638,
+        "Prepaid card": 1225,
+        "Student loan": 2487
+      },
+      "parquet_bytes": 60374770,
+      "parquet_sha256": "3f1e506a9a1c64d88046063ad5a3c184bfbec6a32d19a22abeae96a200036e4c",
+      "retrieved_at_utc": "2026-09-26T13:59:35.520866+00:00"
+    },
+    {
+      "archive_number": 7,
+      "url": "https://files.consumerfinance.gov/f/documents/CCDB_Export_7_August_2024_through_October_2024.zip",
+      "archive_sha256": "f053000c342bfd08bc6f8f382290f623e34b166cb56760c0726ed15e296a6d74",
+      "archive_bytes": 71365591,
+      "counts": {
+        "rows_scanned": 824514,
+        "within_dates": 824514,
+        "within_dates_and_products": 824514,
+        "missing_narrative": 594570,
+        "narrative_candidates": 229944
+      },
+      "products": {
+        "Credit reporting or other personal consumer reports": 183664,
+        "Checking or savings account": 7570,
+        "Mortgage": 3133,
+        "Debt collection": 18422,
+        "Student loan": 2004,
+        "Credit card": 8233,
+        "Money transfer, virtual currency, or money service": 2597,
+        "Debt or credit management": 355,
+        "Vehicle loan or lease": 1914,
+        "Prepaid card": 721,
+        "Payday loan, title loan, personal loan, or advance loan": 1331
+      },
+      "parquet_bytes": 51276652,
+      "parquet_sha256": "c2e8e7a26169d1641bd9551f7277f0f2a5df309960d7b7e40e5794d51db6e3f0",
+      "retrieved_at_utc": "2026-09-26T13:59:25.984477+00:00"
+    },
+    {
+      "archive_number": 8,
+      "url": "https://files.consumerfinance.gov/f/documents/CCDB_Export_8_November_2024_through_December_2024.zip",
+      "archive_sha256": "24b3326a954c0edeff33318b157d12eef5a59547f6f274f9236f1ceaba988a74",
+      "archive_bytes": 52563546,
+      "counts": {
+        "rows_scanned": 591058,
+        "within_dates": 591058,
+        "within_dates_and_products": 591058,
+        "missing_narrative": 436142,
+        "narrative_candidates": 154916
+      },
+      "products": {
+        "Credit reporting or other personal consumer reports": 123356,
+        "Credit card": 5527,
+        "Mortgage": 2032,
+        "Money transfer, virtual currency, or money service": 2041,
+        "Checking or savings account": 5648,
+        "Debt collection": 11706,
+        "Student loan": 1227,
+        "Vehicle loan or lease": 1361,
+        "Prepaid card": 680,
+        "Payday loan, title loan, personal loan, or advance loan": 922,
+        "Debt or credit management": 416
+      },
+      "parquet_bytes": 37291318,
+      "parquet_sha256": "976dd210ad0a113805158586f78a3fd4b35d922801df59c29aa3ff0d4b7a8adb",
+      "retrieved_at_utc": "2026-09-26T13:59:45.940528+00:00"
+    },
+    {
+      "archive_number": 9,
+      "url": "https://files.consumerfinance.gov/f/documents/CCDB_Export_9_January_2025_through_February_2025.zip",
+      "archive_sha256": "11c18bb0973eed8f5e4f66e2979346af0671a3aefcb5a6b9eec73009d53cff64",
+      "archive_bytes": 75475199,
+      "counts": {
+        "rows_scanned": 811019,
+        "within_dates": 811019,
+        "within_dates_and_products": 811019,
+        "missing_narrative": 545614,
+        "narrative_candidates": 265405
+      },
+      "products": {
+        "Credit reporting or other personal consumer reports": 170863,
+        "Money transfer, virtual currency, or money service": 46258,
+        "Debt collection": 15288,
+        "Vehicle loan or lease": 1910,
+        "Mortgage": 2330,
+        "Checking or savings account": 17070,
+        "Credit card": 6958,
+        "Student loan": 2201,
+        "Prepaid card": 747,
+        "Debt or credit management": 659,
+        "Payday loan, title loan, personal loan, or advance loan": 1121
+      },
+      "parquet_bytes": 57131591,
+      "parquet_sha256": "69be30e3d67dd3c951245794d239bba786cf6d52443cbabe637505ac7225ee79",
+      "retrieved_at_utc": "2026-09-26T14:00:01.595561+00:00"
+    },
+    {
+      "archive_number": 10,
+      "url": "https://files.consumerfinance.gov/f/documents/CCDB_Export_10_March_2025_through_April_2025.zip",
+      "archive_sha256": "356822a5e9f295398f2e75bfff25b4760365845432c31e87e689be2c2c0c88ef",
+      "archive_bytes": 68866998,
+      "counts": {
+        "rows_scanned": 803073,
+        "within_dates": 803073,
+        "within_dates_and_products": 803073,
+        "missing_narrative": 592926,
+        "narrative_candidates": 210147
+      },
+      "products": {
+        "Credit reporting or other personal consumer reports": 169219,
+        "Debt collection": 16400,
+        "Student loan": 2976,
+        "Mortgage": 2158,
+        "Money transfer, virtual currency, or money service": 3790,
+        "Vehicle loan or lease": 1558,
+        "Credit card": 5957,
+        "Payday loan, title loan, personal loan, or advance loan": 1080,
+        "Checking or savings account": 6043,
+        "Prepaid card": 566,
+        "Debt or credit management": 400
+      },
+      "parquet_bytes": 45645032,
+      "parquet_sha256": "194896813e84d6a1cf33e3a33af63d8dd7474ba7ea4595d3354789a54c81f3ef",
+      "retrieved_at_utc": "2026-09-26T14:00:05.296494+00:00"
+    },
+    {
+      "archive_number": 11,
+      "url": "https://files.consumerfinance.gov/f/documents/CCDB_Export_11_May_2025_through_June_2025.zip",
+      "archive_sha256": "b7c8475a183e5a01f72aec794d6bc9d8a12a98cce272b3b406d9a0b067479adb",
+      "archive_bytes": 74546009,
+      "counts": {
+        "rows_scanned": 827343,
+        "within_dates": 827343,
+        "within_dates_and_products": 827343,
+        "narrative_candidates": 219632,
+        "missing_narrative": 607711
+      },
+      "products": {
+        "Debt collection": 18119,
+        "Money transfer, virtual currency, or money service": 3524,
+        "Credit reporting or other personal consumer reports": 176303,
+        "Student loan": 1819,
+        "Checking or savings account": 6622,
+        "Credit card": 6761,
+        "Payday loan, title loan, personal loan, or advance loan": 1253,
+        "Mortgage": 2328,
+        "Vehicle loan or lease": 1973,
+        "Prepaid card": 589,
+        "Debt or credit management": 341
+      },
+      "parquet_bytes": 52029993,
+      "parquet_sha256": "4c8e8a4849add61771d17f1868be6130f5b377d7bee3ecd1e9f4fb6058066ef8",
+      "retrieved_at_utc": "2026-09-26T14:00:18.672550+00:00"
+    },
+    {
+      "archive_number": 12,
+      "url": "https://files.consumerfinance.gov/f/documents/CCDB_Export_12_July_2025_through_August_2025.zip",
+      "archive_sha256": "dcc75521581b124f13d6d4b62c2947ccd06a017a09b1dfa7ddeb2d73548554fa",
+      "archive_bytes": 84153614,
+      "counts": {
+        "rows_scanned": 968761,
+        "within_dates": 968761,
+        "within_dates_and_products": 968761,
+        "missing_narrative": 734357,
+        "narrative_candidates": 234404
+      },
+      "products": {
+        "Debt collection": 20238,
+        "Credit card": 7558,
+        "Credit reporting or other personal consumer reports": 185795,
+        "Mortgage": 2552,
+        "Student loan": 1519,
+        "Vehicle loan or lease": 2242,
+        "Debt or credit management": 446,
+        "Checking or savings account": 7942,
+        "Money transfer, virtual currency, or money service": 3852,
+        "Payday loan, title loan, personal loan, or advance loan": 1538,
+        "Prepaid card": 722
+      },
+      "parquet_bytes": 58186994,
+      "parquet_sha256": "6742cd09ea63bf85246e5ef95b3bd0739edf8f4525cbfc4ba7c556cb336fe7a1",
+      "retrieved_at_utc": "2026-09-26T14:00:38.008870+00:00"
+    },
+    {
+      "archive_number": 13,
+      "url": "https://files.consumerfinance.gov/f/documents/CCDB_Export_13_September_2025_through_October_2025.zip",
+      "archive_sha256": "4a48c4e32ab78d8b1c3c910c4e14a62cd9fb50355e60708c1f85e5601858bc9f",
+      "archive_bytes": 67340083,
+      "counts": {
+        "rows_scanned": 1023636,
+        "within_dates": 1023636,
+        "within_dates_and_products": 1023636,
+        "missing_narrative": 865815,
+        "narrative_candidates": 157821
+      },
+      "products": {
+        "Credit reporting or other personal consumer reports": 114268,
+        "Debt collection": 17065,
+        "Mortgage": 2284,
+        "Money transfer, virtual currency, or money service": 4268,
+        "Student loan": 1213,
+        "Credit card": 7446,
+        "Checking or savings account": 6942,
+        "Debt or credit management": 414,
+        "Vehicle loan or lease": 1950,
+        "Prepaid card": 568,
+        "Payday loan, title loan, personal loan, or advance loan": 1403
+      },
+      "parquet_bytes": 42879124,
+      "parquet_sha256": "134e85b5d2dcf185575e1481820dd31d4e4abca5767863df3f5ef8482add020e",
+      "retrieved_at_utc": "2026-09-26T14:00:32.006475+00:00"
+    },
+    {
+      "archive_number": 14,
+      "url": "https://files.consumerfinance.gov/f/documents/CCDB_Export_14_November_2025_through_December_2025.zip",
+      "archive_sha256": "44fd05c01c9e90ae1abd6e0659898ec7362e7a6a53740e6b18a8d0a0ff3749e7",
+      "archive_bytes": 63867562,
+      "counts": {
+        "rows_scanned": 1009132,
+        "within_dates": 1009132,
+        "within_dates_and_products": 1009132,
+        "missing_narrative": 874491,
+        "narrative_candidates": 134641
+      },
+      "products": {
+        "Money transfer, virtual currency, or money service": 3171,
+        "Payday loan, title loan, personal loan, or advance loan": 1410,
+        "Checking or savings account": 6829,
+        "Mortgage": 2379,
+        "Student loan": 1141,
+        "Credit reporting or other personal consumer reports": 96308,
+        "Debt collection": 13499,
+        "Credit card": 6836,
+        "Vehicle loan or lease": 2053,
+        "Prepaid card": 630,
+        "Debt or credit management": 385
+      },
+      "parquet_bytes": 41177119,
+      "parquet_sha256": "fe53505ae6ef3815e1185afd3a7417071d30b898eed4568323028b469ab6f799",
+      "retrieved_at_utc": "2026-09-26T14:00:42.342563+00:00"
+    }
+  ],
+  "runtime": {
+    "python": "3.12.14",
+    "duckdb": "1.5.5",
+    "pyarrow": "25.0.1"
+  },
+  "files": {
+    "complaints_product_issues_2024_2025.csv": {
+      "bytes": 1909095832,
+      "sha256": "21e8aed049a50d9868c963503775c54eb4304043522947caf93fd23cd7c0279d"
+    },
+    "complaints_product_issues_2024_2025.parquet": {
+      "bytes": 351574286,
+      "sha256": "500a8387e8db2598593fb6491c4f0ec9560f50cd3963e21a3f3ec9f22f9a9b48"
+    },
+    "issue_mapping.csv": {
+      "bytes": 15063,
+      "sha256": "01df3adbf889759a7daf9a9fb2806b11740e8aef2fec67476611d4a2ad34bb8a"
+    },
+    "team_mapping.csv": {
+      "bytes": 628,
+      "sha256": "483616f020def229dbabff365627991492d669d4da64113c38df22783a82ae86"
+    },
+    "issue_eligibility.csv": {
+      "bytes": 36525,
+      "sha256": "53a9aa7307621a5db0433dd1fbf6ef259e75aa95d469234bd91c224d9a166616"
+    },
+    "team_coverage.csv": {
+      "bytes": 1184,
+      "sha256": "b66fbd3c01261e0d2feaf635d7f093f033de8430a031a5d83482dd5a689ce449"
+    },
+    "excluded_records.csv.gz": {
+      "bytes": 23403932,
+      "sha256": "9010ee3e6267e77541b008dd730466f18813742142c8556055d1f07a82b11d52"
+    },
+    "README.md": {
+      "bytes": 9419,
+      "sha256": "e3cf4693406d3b41e66e27b8547155d23945e3d09de4dcdeea1bd48187288d4e"
+    },
+    "validation.json": {
+      "bytes": 1051,
+      "sha256": "655112771360ee700abf69184d3fb00f507bd27520aee7b33b77f534035ba333"
+    }
+  }
+}
