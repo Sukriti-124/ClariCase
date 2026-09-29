@@ -10,6 +10,7 @@ env/
 .env
 .env.*
 !.env.example
+.streamlit/secrets.toml
 
 # ---------------------------------------------------------------- editors / os
 .vscode/*
@@ -20,9 +21,12 @@ env/
 # ---------------------------------------------------------------- data splits & artifacts
 data/processed/splits/
 
-# Keep small text artifacts (metrics, reports, confusion matrix, predictions);
-# ignore only the binary model file, which is large and non-deterministic.
-docs/metrics/baseline_model_2/*.joblib
+# docs/metrics/baseline_model_2/model.joblib is committed on purpose: the
+# deployed Streamlit app loads it.
+
+# ---------------------------------------------------------------- app
+# Local-mode complaint database (the deployed app uses Supabase).
+data/app/
 
 # ---------------------------------------------------------------- large data files
 data/raw/complaints.csv
