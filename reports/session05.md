@@ -25,7 +25,7 @@ north_star:
 - **Routing dataset v1.0** (`data/processed/`). 1,044,615 complaints received 2024-01-01 to 2025-12-31 across 3,801 companies, spanning 73 product-specific issue labels that map deterministically to 11 support teams. Construction rules and archive hashes are recorded in `dataset_metadata.json`; all ten checks in `validation.json` pass.
 - **Baseline 2, the team routing model** (`src/baseline_model_2/`). TF-IDF into a calibrated Multinomial Naive Bayes over `complaint_text`, predicting one of 11 `team_id` values. Metrics, coverage curve, per-team routing table and test predictions are committed to `docs/metrics/baseline_model_2/`, with the write-up in `docs/baseline_model_2.md`.
 - **Leakage-aware temporal evaluation.** Training covers 2024-01-01 to 2025-06-30 at 3,000 records per team (32,599); validation is July–September 2025 and test is October–December 2025, both at the true team distribution (153,502 and 109,834). Leakage groups spanning a period boundary were removed entirely, 6,867 records across 1,949 groups.
-- **Complaint intake application** (`streamlit_app.py`, `src/app/`). Consumers describe a problem in free text and receive a routed team and a tracking identifier; the product and issue dropdowns are gone. Storage runs on Supabase with a local SQLite fallback. Live at https://claricase-enmuypbz78oqjgiec98bhw.streamlit.app/.
+- **Complaint intake application** (`streamlit_app.py`, `src/app/`). Consumers describe a problem in free text and receive a routed team and a tracking identifier; the product and issue dropdowns are gone. Storage runs on Supabase with a local SQLite fallback. Live at [ClariCase](https://claricase-enmuypbz78oqjgiec98bhw.streamlit.app/).
 - **Repository consolidated.** `src/models/baseline.py` and `docs/metrics/baseline/` became `src/baseline_model_1/` and `docs/metrics/baseline_model_1/`, separating the two baselines and their artifacts.
 - **Per-bank EDA branches aligned** to the new structure. `datawellsfargo/eda` and `databofa/eda` now mirror main's layout with bank-prefixed paths. Both remain unmerged.
 
@@ -37,7 +37,7 @@ north_star:
 - **The project has a working product for the first time.**
 
 ## User evidence
-- The application is deployed and publicly reachable at https://claricase-enmuypbz78oqjgiec98bhw.streamlit.app/. It has not yet been placed in front of a user, so no external evidence was gathered this session.
+- The application is deployed and publicly reachable at [ClariCase](https://claricase-enmuypbz78oqjgiec98bhw.streamlit.app/). It has not yet been placed in front of a user, so no external evidence was gathered this session.
 - **Raw artifact**: `streamlit_app.py`, `src/app/storage.py`, `docs/baseline_model_2.md`
 
 ## Metrics snapshot
@@ -94,7 +94,10 @@ north_star:
 - The full dataset sits outside the repository. At 1.91 GB it is impractical to commit, so retraining currently requires fetching the file separately.
 
 ## Next week's goal
-
+- **Assign complaints to issues alongside teams.** Extend the model to predict the product-specific issue (73 labels) as well as the team, so each complaint arrives with both where it goes and what it is about.
+- **Improve the UI.** Refine the intake and tracking screens based on the first round of use.
+- **Prepare an end-to-end, user-friendly product for financial complaints.** Connect intake, routing, storage and tracking into one flow that a consumer can use from start to finish without guidance.
+- **Obfuscate PII in sensitive information.** Detect and mask personal identifiers such as account numbers, Social Security numbers, names and addresses before complaints are stored or shown.
 
 ## Individual contributions
 - **Sukriti Srivastava (Product)** — Designed and shipped the consumer-facing product. Built a clean Streamlit intake interface that accepts a complaint in plain language, routes it to the responsible team and returns a tracking ID, removing the product and issue dropdowns entirely. Implemented the complaint storage layer behind it (`src/app/storage.py`, `schema.sql`, Supabase with a local SQLite fallback) and rebuilt the served model so the running app loads the same artifact the reported metrics were computed from. (PR #18)
@@ -103,6 +106,7 @@ north_star:
 - **Sriramm S S (Users and Research)** — Built the dataset the entire project now runs on. Worked through the full CFPB narrative archive across every company, product category and issue type to assemble a clean, deduplicated corpus of 1,044,615 complaints spanning 3,801 companies, 73 product-specific issue labels and 11 support teams. Defined and documented the construction rules, excluded narratives whose identical text carried conflicting labels, assigned leakage groups so near-duplicate templates cannot straddle a split, and shipped it with archive hashes, reconciliation counts and ten passing validation checks. Every model and every metric in this report is trained and measured on that corpus.
 
 ## Lean canvas changes (if any)
-- The archive is a closed set. The CFPB stopped publishing narratives, and this dataset is built entirely from the 10 archived export files covering 2024–2025. The corpus cannot grow from this source, only be re-cut. Any live product will eventually run on inputs drawn from a different distribution than it was trained on.
-- Scope widened from one bank to an industry corpus. The product is no longer "route complaints for a bank" but "route complaints across 3,801 companies into 11 support functions", which changes who the buyer is.
-- The consumer is now a user, not just a data source. The app removes the product and issue dropdowns and replaces them with free text plus a tracking ID, so the value proposition now includes the person filing the complaint, not only the ops team reading it.
+- **Solution / Unfair advantage:** the archive is a closed set. The CFPB stopped publishing narratives, and this dataset is built entirely from the 10 archived export files covering 2024–2025. The corpus cannot grow from this source, only be re-cut. Any live product will eventually run on inputs drawn from a different distribution than it was trained on.
+- **Customer segments:** scope widened from one bank to an industry corpus. The product is no longer "route complaints for a bank" but "route complaints across 3,801 companies into 11 support functions", which changes who the buyer is.
+- **Customer segments / Unique value proposition:** the consumer is now a user, not just a data source. The app removes the product and issue dropdowns and replaces them with free text plus a tracking ID, so the value proposition now includes the person filing the complaint, not only the ops team reading it.
+- **Key metrics:** the north star's definition was tightened, not just its value. It is now measured on a temporal split at the real team mix, with the confidence threshold fitted on validation and frozen for test, and paired with a per-team precision guardrail (floor 0.85). Session 04's 26.4% was measured on a single-bank test set with the threshold chosen on test, so the two figures are not directly comparable.

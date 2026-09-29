@@ -64,8 +64,6 @@ with submit_tab:
                      placeholder="Describe the problem in your own words: "
                                  "what happened, when, and what you'd like "
                                  "done about it.")
-        st.caption("Please don't include account numbers, Social Security "
-                   "numbers, or other personal identifiers.")
         st.form_submit_button("Submit complaint", type="primary",
                               on_click=handle_submit)
 
