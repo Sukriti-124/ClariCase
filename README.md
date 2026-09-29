@@ -4,6 +4,8 @@ We help financial services teams understand consumer complaints and identify act
 
 **Repository:** https://github.com/farcypeer46/ClariCase
 
+**Live app:** https://claricase-enmuypbz78oqjgiec98bhw.streamlit.app/
+
 ---
 
 ## Team
@@ -86,7 +88,7 @@ complaints in `data/app/complaints.db`. This file is not committed.
    in its SQL Editor.
 2. Copy the **Project URL** and the **anon / publishable** key from
    Project Settings → API.
-3. Create `.streamlit/secrets.toml`. It is gitignored and must never be
+3. Create `.streamlit_secrets.toml`. It is gitignored and must never be
    committed.
 
    ```toml
