@@ -6,7 +6,7 @@ import sys
 import joblib
 import pandas as pd
 
-from src.baseline_model_1.config import ARTIFACTS_DIR, TEAM_MAPPING
+from src.baseline_model_2.config import ARTIFACTS_DIR, TEAM_MAPPING
 
 
 def load_model(path=ARTIFACTS_DIR / "model.joblib"):
@@ -18,8 +18,8 @@ def _team_lookup() -> dict[str, str]:
     return dict(zip(df["team_id"], df["team_name"]))
 
 
-def predict(text: str, top_k: int = 3) -> dict:
-    model = load_model()
+def predict(text: str, top_k: int = 3, model=None) -> dict:
+    model = model if model is not None else load_model()
     proba = model.predict_proba([text])[0]
     classes = model.classes_
     order = proba.argsort()[::-1][:top_k]
