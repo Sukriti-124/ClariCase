@@ -1,9 +1,3 @@
-"""Load the fitted TF-IDF model and route a complaint to a team.
-
-Run:
-    python -m src.baseline_model_1.predict "My credit card was charged twice ..."
-"""
-
 from __future__ import annotations
 
 import argparse

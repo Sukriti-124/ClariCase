@@ -1,7 +1,6 @@
-"""Paths and constants for the TF-IDF team-classification baseline."""
-
 from pathlib import Path
 
+# Path and constants for the TF-IDF team-classification baseline.
 ROOT = Path(__file__).resolve().parents[2]
 PROCESSED = ROOT / "data" / "processed"
 FULL_CSV = PROCESSED / "complaints_product_issues_2024_2025.csv"

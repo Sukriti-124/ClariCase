@@ -19,7 +19,10 @@ env/
 
 # ---------------------------------------------------------------- data splits & artifacts
 data/processed/splits/
-src/baseline_model_1/artifacts/
+
+# Keep small text artifacts (metrics, reports, confusion matrix, predictions);
+# ignore only the binary model file, which is large and non-deterministic.
+src/baseline_model_1/artifacts/*.joblib
 
 # ---------------------------------------------------------------- large data files
 data/raw/complaints.csv
