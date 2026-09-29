@@ -6,7 +6,7 @@ import sys
 import joblib
 import pandas as pd
 
-from src.baseline_model_1.config import ARTIFACTS_DIR, TEAM_MAPPING
+from src.baseline_model_2.config import ARTIFACTS_DIR, TEAM_MAPPING
 
 
 def load_model(path=ARTIFACTS_DIR / "model.joblib"):
