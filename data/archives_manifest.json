@@ -1,0 +1,18 @@
+{
+  "prepared_by": "Sriramm S S (SriRammSS)",
+  "related_issue": "https://github.com/farcypeer46/ClariCase/issues/7",
+  "archives": {
+    "complaint_router_11_teams_2024_2025.zip": {
+      "bytes": 516131422,
+      "sha256": "f82cd3c08b2294b921d077a0c610516bf1e579c6fa975f178e4314f1961e9c5f",
+      "records": 1044615,
+      "date_range": "2024-01-01 through 2025-12-31"
+    },
+    "complaint_router_2026_holdout.zip": {
+      "bytes": 21361289,
+      "sha256": "f1bb8724a110754fb127dcd5f523a5077c2319e66a65096c58aa99be53e27f3b",
+      "records": 29798,
+      "date_range": "2026-01-01 through 2026-02-28"
+    }
+  }
+}
