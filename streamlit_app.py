@@ -39,38 +39,54 @@ if not store.persistent:
     st.info("Local mode: complaints are saved to data/app/complaints.db on "
             "this machine. Add Supabase secrets to store them online.")
 
+def handle_submit() -> None:
+    # Runs before the rerun, so the text box can be cleared on success.
+    # On a warning or error the text is kept so the user can fix and resend.
+    text = st.session_state["complaint_text"].strip()
+    if len(text.split()) < MIN_WORDS:
+        st.session_state["submit_result"] = {"kind": "too_short"}
+        return
+    record = build_record(text, predict(text, model=get_model()))
+    try:
+        store.add(record)
+    except Exception:
+        st.session_state["submit_result"] = {"kind": "error"}
+        return
+    st.session_state["submit_result"] = {"kind": "sent", "record": record}
+    st.session_state["complaint_text"] = ""
+
+
 submit_tab, track_tab = st.tabs(["Submit a complaint", "Track my complaint"])
 
 with submit_tab:
     with st.form("complaint"):
-        text = st.text_area("What happened?", height=220,
-                            placeholder="Describe the problem in your own "
-                                        "words: what happened, when, and "
-                                        "what you'd like done about it.")
+        st.text_area("What happened?", key="complaint_text", height=220,
+                     placeholder="Describe the problem in your own words: "
+                                 "what happened, when, and what you'd like "
+                                 "done about it.")
         st.caption("Please don't include account numbers, Social Security "
                    "numbers, or other personal identifiers.")
-        submitted = st.form_submit_button("Submit complaint", type="primary")
+        st.form_submit_button("Submit complaint", type="primary",
+                              on_click=handle_submit)
 
-    if submitted:
-        text = text.strip()
-        if len(text.split()) < MIN_WORDS:
-            st.warning(f"Please describe your complaint in at least "
-                       f"{MIN_WORDS} words so we can route it correctly.")
-        else:
-            record = build_record(text, predict(text, model=get_model()))
-            try:
-                store.add(record)
-            except Exception:
-                st.error("We couldn't save your complaint. Please try again "
-                         "in a moment.")
-            else:
-                st.success(f"Your complaint has been sent to the "
-                           f"**{record['team_name']}**.")
-                st.write("Your tracking ID:")
-                st.code(record["tracking_id"], language=None)
-                st.caption("Save this ID. You can use it on the "
-                           "**Track my complaint** tab to check on your "
-                           "complaint.")
+    # Kept until the next submit, so the tracking ID stays visible.
+    result = st.session_state.get("submit_result")
+    if result is None:
+        pass
+    elif result["kind"] == "too_short":
+        st.warning(f"Please describe your complaint in at least "
+                   f"{MIN_WORDS} words so we can route it correctly.")
+    elif result["kind"] == "error":
+        st.error("We couldn't save your complaint. Please try again "
+                 "in a moment.")
+    else:
+        record = result["record"]
+        st.success(f"Your complaint has been sent to the "
+                   f"**{record['team_name']}**.")
+        st.write("Your tracking ID:")
+        st.code(record["tracking_id"], language=None)
+        st.caption("Save this ID. You can use it on the "
+                   "**Track my complaint** tab to check on your complaint.")
 
 with track_tab:
     with st.form("track"):
