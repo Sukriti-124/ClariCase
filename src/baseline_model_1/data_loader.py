@@ -1,15 +1,3 @@
-"""Stratified sampling + group-aware train/val/test split.
-
-Reads the full processed CSV in chunks, samples up to SAMPLE_PER_TEAM records
-per team_id, then splits with GroupShuffleSplit on leakage_group_id so template
-near-duplicates never straddle partitions.
-
-Splits are persisted under data/processed/splits/ so every teammate trains and
-evaluates on the same rows.
-
-Run: python -m src.baseline_model_1.data_loader
-"""
-
 from __future__ import annotations
 
 import pandas as pd
@@ -24,11 +12,7 @@ from src.baseline_model_1.config import (
 def sample_stratified(csv_path=FULL_CSV, per_team=SAMPLE_PER_TEAM,
                       chunksize=CHUNKSIZE, seed=RANDOM_SEED,
                       verbose=True) -> pd.DataFrame:
-    """Fill a per-team bucket up to `per_team` rows by streaming the CSV.
 
-    Iterates chunks; each chunk contributes a random sub-sample to every team
-    that still has room. Stops early once every team's bucket is full.
-    """
     buckets: dict[str, list[pd.DataFrame]] = {}
     counts: dict[str, int] = {}
 
@@ -72,12 +56,8 @@ def sample_stratified(csv_path=FULL_CSV, per_team=SAMPLE_PER_TEAM,
 
 def group_split(df: pd.DataFrame, seed: int = RANDOM_SEED
                 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Group-aware 60/20/20 split on leakage_group_id.
 
-    Two-step GroupShuffleSplit: first carve out TEST, then split remaining
-    into TRAIN and VAL. Ensures no leakage_group_id is present in more than
-    one partition.
-    """
+    # Group-aware 60/20/20 split on leakage_group_id.
     groups = df[GROUP_COL].values
 
     gss = GroupShuffleSplit(n_splits=1, test_size=TEST_FRAC, random_state=seed)
@@ -117,7 +97,7 @@ def build_and_save_splits(verbose: bool = True) -> None:
 
 
 def load_splits() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Read the persisted splits. Call build_and_save_splits() first."""
+    # Read the persisted splits. Call build_and_save_splits() first.
     train = pd.read_csv(SPLITS_DIR / "train.csv", keep_default_na=False)
     val = pd.read_csv(SPLITS_DIR / "validation.csv", keep_default_na=False)
     test = pd.read_csv(SPLITS_DIR / "test.csv", keep_default_na=False)

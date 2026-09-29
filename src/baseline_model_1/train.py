@@ -1,21 +1,3 @@
-"""TF-IDF + Multinomial Naive Bayes baseline for team classification.
-
-Target: `team_id` (11 support teams from data/processed/team_mapping.csv).
-Input : `complaint_text`.
-
-Reads pre-built train/validation/test splits from data/processed/splits/.
-If they are missing, builds them first via data_loader.build_and_save_splits().
-
-Artifacts written to src/baseline_model_1/artifacts/:
-  - model.joblib               fitted sklearn Pipeline
-  - metrics.json               accuracy / macro-F1 / weighted-F1 for val + test
-  - classification_report.json per-class precision/recall/F1 on test
-  - confusion_matrix.csv       test-set confusion matrix
-  - predictions_test.csv       row-level test predictions with confidence
-
-Run: python -m src.baseline_model_1.train
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -39,7 +21,7 @@ from src.baseline_model_1.config import (ARTIFACTS_DIR, ID_COL, LABEL_COL,
 from src.baseline_model_1.data_loader import (build_and_save_splits,
                                               load_splits)
 
-
+# TF-IDF + Multinomial Naive Bayes baseline for team classification.
 def build_pipeline(max_features: int = 75_000) -> Pipeline:
     return Pipeline([
         ("tfidf", TfidfVectorizer(
