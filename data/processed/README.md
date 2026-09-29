@@ -2,7 +2,7 @@
 
 Complaints received January 1, 2024–December 31, 2025, from all companies in the official CFPB narrative archives. This dataset contains **1,044,615 complaints, 73 product-specific issue labels, 11 teams, and 3,801 companies**.
 
-This is the constructed dataset. Narrative preprocessing, an EDA notebook, train/validation/test splits, and model training have not been performed.
+This document describes the original data-construction snapshot, whose CSV retains the unmodified narratives. The complete archive is now available through [dataset downloads](../README.md). Subsequent text preprocessing and temporal preparation are documented separately in [preparation/README.md](../preparation/README.md); the construction metadata and checks below remain unchanged.
 
 ## Prediction task
 
