@@ -37,7 +37,6 @@ north_star:
 - **Product:** The app now shows confidence, alternatives and a review path, instead of a single team for every complaint.
 
 ## User evidence
-- **TODO (team): add any user testing done this session**, or state plainly that none took place.
 - **Raw artifact**: `streamlit_app.py`, `docs/improved_model_1.md`, `docs/metrics/improved_model_1/`, `reports/model_comparison.csv`
 
 ## Metrics snapshot
@@ -97,13 +96,13 @@ north_star:
 ## Challenges / blockers
 - PII obfuscation The app currently has no protection for sensitive details.
 - The forward-drift cohort is no longer fresh. A new untouched evaluation window will be needed to report future gains credibly.
-- - Training is slow -  The full run with character n-grams took about 4.5 hours on a laptop GPU, which limits how many experiments fit in a week.
+- Training is slow -  The full run with character n-grams took about 4.5 hours on a laptop GPU, which limits how many experiments fit in a week.
 
 ## Next week's goal
 - **Mask PII before storage.** Detect and redact account numbers, Social Security numbers, names and addresses before a complaint is saved or shown.
 - Evaluate the fine-tuned transformer. Finish fine-tuning Llama 3.2 3B Instruct and score it on the same test set and protocol as Improved Model 1
 - **Close the team-to-issue gap.** Try a joint team-and-issue model or sentence embeddings (Improved Model 2) to recover some of the 0.144 issue F1 lost to team errors.
-- **Explore Jev AI and agentic AI.** Jev AI, from TypeSafe AI, is a fast, low-cost model that returns structured probabilistic decisions (choices, scores or yes/no probabilities) rather than conversational text. Because that matches the router's output, a team choice with a confidence, test it on the same test set and 95%-precision rule as Improved Model 1, comparing accuracy, cost and speed. Separately, explore an agentic resolution guidance agent that suggests next steps once a complaint is routed.
+- **Explore Jev AI and agentic AI.** Identify where each could add value to the product beyond routing.
 
 ## Individual contributions
 - **Sukriti Srivastava (Product)** — Integrated Improved Model 1 into the live app and redesigned the intake experience: confidence-based display of one to three teams, the top three issues, Routed and Under review states, a step-by-step progress view, tab reset and a refreshed visual theme.  (PR #22) 
