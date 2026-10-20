@@ -32,7 +32,7 @@ north_star:
 ## What changed since session 05
 - **Model:** A single Naive Bayes team classifier became a hierarchical Linear SVM that predicts the team and the issue. Macro-F1 rose from 0.647 to 0.726 on the identical test set.
 - **Training data:** 32,599 records capped at 3,000 per team became 257,694 records capped at 10,000 per issue, so rare issues get full representation.
-- **Task:** issue prediction, reserved for later in session 05, is now live. Every complaint arrives with a team and its three most likely issues.
+- **Task:** Issue prediction is now live. Every complaint arrives with a team and its three most likely issues.
 - **Routing:** The served route uses one global threshold (0.818), the same operating point the north star reports. Per-team thresholds were evaluated and not adopted (see What did not work).
 - **Product:** The app now shows confidence, alternatives and a review path, instead of a single team for every complaint.
 
