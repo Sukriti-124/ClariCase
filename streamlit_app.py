@@ -8,6 +8,7 @@ from datetime import datetime
 
 import streamlit as st
 
+from src.app.pii import mask
 from src.app.storage import (LocalStore, SupabaseStore, build_record,
                              normalise_tracking_id)
 from src.improved_model_1.predict import load_model, predict
@@ -127,7 +128,10 @@ def handle_submit() -> None:
         st.session_state["submit_result"] = {"kind": "too_short"}
         return
     st.session_state["submit_result"] = None
-    st.session_state["pending_text"] = text
+    # Redact before anything downstream sees it: the raw text is never
+    # predicted on, stored or displayed. Length is checked first so a
+    # complaint is not rejected for the words masking removes.
+    st.session_state["pending_text"] = mask(text)
 
 
 STEPS = ("Analyzing complaint", "Identifying issue", "Assigning team")

@@ -11,6 +11,8 @@ import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src.app.pii import mask
+
 TABLE = "complaints"
 LOCAL_DB = Path(__file__).resolve().parents[2] / "data" / "app" / "complaints.db"
 
@@ -40,7 +42,9 @@ def build_record(text: str, prediction: dict) -> dict:
     return {
         "tracking_id": new_tracking_id(),
         "submitted_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "complaint_text": text,
+        # Masked here as well as at intake, so no caller can write raw text.
+        # mask() is idempotent, so the second pass is a no-op.
+        "complaint_text": mask(text),
         "team_id": prediction["predicted_team_id"],
         "team_name": prediction["predicted_team_name"],
         "confidence": round(prediction["confidence"], 4),
