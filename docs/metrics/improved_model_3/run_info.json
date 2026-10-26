@@ -1,0 +1,20 @@
+{
+  "gpu_info": {
+    "torch": "2.14.0+cu126",
+    "cuda_available": true,
+    "device_name": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "total_vram_gb": 6.0,
+    "cuda_version": "12.6"
+  },
+  "peak_vram_gb": 0.81,
+  "wall_clock_sec": 9999.8,
+  "train_rows": 50000,
+  "val_eval_subset": 20000,
+  "epochs": 1,
+  "split": "train_cap_issue",
+  "smoke": true,
+  "model_name": "google/flan-t5-base",
+  "lora_r": 16,
+  "per_device_batch": 8,
+  "grad_accum": 2
+}
