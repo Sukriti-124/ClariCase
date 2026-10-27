@@ -230,6 +230,9 @@ with submit_tab:
                      placeholder="For example: I was charged an overdraft fee "
                                  "even though I had enough money in my "
                                  "account. I'd like the fee refunded.")
+        st.caption(":material/lock: For your privacy, details such as account, "
+                   "card and phone numbers are hidden automatically before "
+                   "your complaint is saved.")
         st.form_submit_button("Submit complaint", type="primary",
                               icon=":material/send:", on_click=handle_submit,
                               width="stretch")
@@ -319,6 +322,8 @@ with track_tab:
             st.write(f"{submitted_at:%B %d, %Y at %H:%M} UTC")
             with st.expander("Your complaint"):
                 st.write(found["complaint_text"])
+                st.caption("Personal details are shown as XXXX for your "
+                           "privacy.")
 
 # ---------------------------------------------------------------- footer
 footer = ("Clear-cut complaints are routed automatically; the rest are "

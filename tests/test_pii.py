@@ -21,8 +21,6 @@ VALID_CARD = "4111111111111111"
     ("Mail it to Apt 4B.", f"Mail it to {REDACTION}."),
     ("I am in TX 75201 now.", f"I am in {REDACTION} now."),
     ("zip code: 90210", REDACTION),
-    ("My name is Jane Smith and I object.",
-     f"My name is {REDACTION} and I object."),
 ])
 def test_masks_each_kind(raw, expected):
     assert mask(raw) == expected
@@ -77,6 +75,53 @@ def test_overlapping_matches_resolve_to_one_span():
     assert found[0].kind == "ssn"
 
 
+@pytest.mark.parametrize("raw", [
+    # Unit/apartment keywords at the start of ordinary words.
+    "My account was flagged and the flat fee doubled.",
+    "They are stealing my money and won't take the next steps.",
+    "My flight was cancelled and the floor manager refused a refund.",
+    "I had 3 units of credit and 2 suites booked.",
+    # A number followed by lowercase words ending in a street suffix.
+    "I was charged 3 times along the way.",
+    "I paid 500 dollars before going to court.",
+    # Sign-off words used in a sentence, and "thank you" before a company.
+    "I signed Chase's form last week.",
+    "Thank you Capital One for nothing.",
+    # Labels followed by short numbers or words, not reference codes.
+    "The case was closed after 3 days and my order arrived 2 weeks late.",
+    # Amounts and dates after a label are not reference codes.
+    "I took a loan 25000 dollars and paid off loan 2024-07 early.",
+    "My order 12345 never arrived.",
+])
+def test_leaves_words_that_only_resemble_identifiers(raw):
+    assert mask(raw) == raw
+
+
+@pytest.mark.parametrize("raw, expected", [
+    ("I live at 1234 Main street.", f"I live at {REDACTION}."),
+    ("Mail it to Suite 200 or Ste. #5.",
+     f"Mail it to {REDACTION} or {REDACTION}."),
+    ("They gave me ref #A1B2C3D4E5 and claim no. 4XK29PL.",
+     f"They gave me ref #{REDACTION} and claim no. {REDACTION}."),
+    ("Use ref #12345 or case no. 48213.",
+     f"Use ref #{REDACTION} or case no. {REDACTION}."),
+])
+def test_masks_addresses_and_reference_codes(raw, expected):
+    assert mask(raw) == expected
+
+
+@pytest.mark.parametrize("raw", [
+    "My name is Jane Smith and I object.",
+    "Sincerely,\nJane Doe",
+    "Regards, Michael Brown",
+    "Name: Priya Patel",
+    "I spoke to Maria at the branch.",
+])
+def test_keeps_names(raw):
+    # Names are deliberately not masked; see NAMES in src/app/pii.py.
+    assert mask(raw) == raw
+
+
 def test_handles_empty_and_none():
     assert mask("") == ""
     assert mask(None) is None
@@ -89,9 +134,11 @@ def test_masks_every_identifier_in_a_realistic_complaint():
            "555-867-5309 and emailed support@chase.example.com with no "
            "reply. I live at 1600 Pennsylvania Avenue, Apt 2C, DC 20500.")
     out = mask(raw)
-    for leaked in ("Robert Chen", "03/14/2025", "4111111111111111",
+    for leaked in ("03/14/2025", "4111111111111111",
                    "555-867-5309", "support@chase.example.com",
                    "1600 Pennsylvania Avenue", "20500"):
         assert leaked not in out, f"{leaked!r} survived masking"
     # The routable content must survive, or the classifier loses its signal.
     assert "Chase" in out and "unauthorised charge" in out
+    # Names are kept by design.
+    assert "Robert Chen" in out
