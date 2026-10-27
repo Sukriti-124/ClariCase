@@ -1,0 +1,11 @@
+{
+  "checkpoint": "F:\\NLP_MSML641\\data\\cache\\improved_model_3\\checkpoints\\checkpoint-3125",
+  "split": "val",
+  "rows": 153502,
+  "accuracy": 0.7450326380112311,
+  "macro_f1": 0.48451614944748234,
+  "weighted_f1": 0.7508698013261393,
+  "unk_rate": 0.0,
+  "wall_clock_sec": 2917.1,
+  "throughput_rows_per_sec": 52.6
+}
