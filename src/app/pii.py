@@ -21,9 +21,7 @@ reach the classifier as an unseen token.
     >>> mask("Call me at 555-123-4567 about account 1234567890.")
     'Call me at XXXX about account XXXX.'
 
-Names are only caught where the writer announces them ("my name is ...",
-"Sincerely, ..."). Finding names in running prose needs a named-entity model,
-which this module deliberately does not pull in — see NAME LIMITATION below.
+Names are deliberately left in place; see NAMES below.
 """
 
 from __future__ import annotations
@@ -40,6 +38,10 @@ DATE_REDACTION = "XX/XX/XXXX"
 # "Street" wins over "St" on the same span.
 _STREET = (r"Street|Avenue|Boulevard|Drive|Circle|Court|Place|Lane|Road|Way"
            r"|Terrace|Parkway|Highway|Blvd|Pkwy|Hwy|Ave|Rd|Ln|Dr|Ct|Cir|Pl|St")
+
+# Words that introduce a reference code ("ref", "claim no.", "loan #").
+_LABEL = (r"\b(?i:ref|reference|case|claim|confirmation|ticket|tracking|order"
+          r"|acct|account|loan)\b")
 
 _MONTH = (r"January|February|March|April|May|June|July|August|September"
           r"|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept"
@@ -62,19 +64,35 @@ _RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
      DATE_REDACTION),
     # No trailing `\.?`: it cannot tell "Ave." from a sentence ending in
     # "Terrace." and swallowing the full stop runs two sentences together.
+    # Case-sensitive on purpose: the street name must be one to four
+    # capitalised words ("742 Evergreen Terrace"), otherwise ordinary prose
+    # such as "charged 3 times along the way" or "500 dollars before going to
+    # court" reads as an address. Only the suffix itself ignores case.
     ("address", re.compile(
-        rf"\b\d{{1,6}}\s+(?:[A-Z0-9][\w.'-]*\s+){{0,4}}(?:{_STREET})\b",
-        re.I), REDACTION),
-    # "Apt 4B", "Suite 200", "Unit 12".
+        rf"\b\d{{1,6}}\s+(?:[A-Z0-9][\w.'-]*\s+){{1,4}}(?i:{_STREET})\b"),
+     REDACTION),
+    # "Apt 4B", "Suite 200", "Unit 12", "Ste. #5". The keyword must be a whole
+    # word followed by a space or `#`, and the unit must contain a digit;
+    # without both, "flagged", "flat", "stealing", "steps" and "units" match.
     ("address", re.compile(
-        r"\b(?:apt|apartment|suite|ste|unit|floor|fl)\.?\s*#?\s*[\w-]{1,6}\b",
+        r"\b(?:apt|apartment|suite|ste|unit|floor|fl)\b\.?(?:\s*#\s*|\s+)"
+        r"(?=[A-Za-z-]*\d)[\w-]{1,6}\b",
         re.I), REDACTION),
     ("zip", re.compile(r"\b[A-Z]{2}\s+\d{5}(?:-\d{4})?\b"), REDACTION),
     ("zip", re.compile(r"\bzip(?:\s*code)?\s*[:#]?\s*\d{5}(?:-\d{4})?\b",
                        re.I), REDACTION),
-    ("name", re.compile(
-        r"(?:\b(?:my name is|name is|name:|i am called|signed|sincerely|"
-        r"regards|thank you),?\s+)([A-Z][\w'-]+(?:\s+[A-Z][\w'-]+){0,2})"),
+    # Reference codes after a label such as "ref", "claim" or "loan".
+    # A code that mixes letters and digits ("ref #A1B2C3D4E5", "claim no.
+    # 4XK29PL") is masked on its own. A digits-only code is masked only when
+    # it is explicitly marked ("ref #12345", "case no. 48213"); otherwise
+    # "a loan 25000 dollars" or "loan 2024-07" would lose the amount or date.
+    # Longer digit runs are caught by the `number` rule below either way.
+    ("reference", re.compile(
+        rf"{_LABEL}\.?\s*(?:(?i:no\.?|number|id)\s*[:#]?\s*|[:#]\s*)?"
+        r"((?=[A-Za-z0-9-]*[A-Za-z])(?=[A-Za-z0-9-]*\d)[A-Za-z0-9-]{5,})\b"),
+     REDACTION),
+    ("reference", re.compile(
+        rf"{_LABEL}\.?\s*(?:(?i:no\.?|number|id)\s*[:#]?|[:#])\s*(\d{{5,6}})\b"),
      REDACTION),
     # Anything else long enough to identify an account, claim or case.
     ("number", re.compile(r"\b\d{7,}\b"), REDACTION),
@@ -118,7 +136,8 @@ def _spans(text: str) -> list[Finding]:
     taken: list[Finding] = []
     for kind, pattern, _ in _RULES:
         for m in pattern.finditer(text):
-            # A name rule captures the name itself, not the lead-in phrase.
+            # A rule with a group (reference codes) masks only the group,
+            # not the label in front of it.
             start, end = (m.span(1) if pattern.groups else m.span())
             if not _accept(kind, text[start:end]):
                 continue
@@ -156,11 +175,10 @@ def mask_all(texts: Iterable[str]) -> list[str]:
     return [mask(t) for t in texts]
 
 
-# NAME LIMITATION
-# ---------------
-# The `name` rule fires only where a writer announces their own name. A name in
-# running prose ("I spoke to Sarah in the branch") is not detected, because
-# separating people from banks, products and places needs a named-entity model.
-# Adding one means a new runtime dependency and a latency cost on every
-# submission, so it is a deliberate deferral rather than an oversight. Until
-# then, treat stored complaints as pseudonymised, not anonymised.
+# NAMES
+# -----
+# Personal names are intentionally not masked: the team chose to keep them so
+# complaints stay readable for the people handling them. Stored complaints can
+# therefore contain names, and should be treated as personal data, not as
+# anonymised text. Masking names reliably would also need a named-entity model
+# to tell people from banks, products and places.
