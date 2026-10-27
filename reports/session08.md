@@ -23,8 +23,8 @@ north_star:
 
 ## Shipped this week
 - **PII masking in the app** (`src/app/pii.py`, PR #29). Emails, URLs, Social Security numbers, payment cards (Luhn-checked), phone numbers, account numbers, street addresses, ZIP codes and dates are replaced with the CFPB's own markers (`XXXX`, `XX/XX/XXXX`) before a complaint is classified, and again before it is stored, so raw details are never predicted on or saved. Because the model's text cleaning already drops these markers, masking adds no unseen tokens. 21 tests.
-- **PII masking fixes** (branch `fix/pii-false-positives`, committed, not yet merged). The first version masked ordinary words: "flagged", "stealing", "flight", "floor", "steps", and phrases such as "charged 3 times along the way". Both address rules were tightened, alphanumeric reference codes ("ref #A1B2C3D4E5") are now masked, names are deliberately kept by team decision, and the app now tells users that personal details are hidden. 40 tests.
-- **Improved Model 3, a transformer classifier** (`src/improved_model_3/`, PRs #30 and #31). FLAN-T5-base fine-tuned with LoRA (rank 16 on the attention q and v projections, 0.79% of weights trainable) generates the team name from the complaint text. Redaction markers map to dedicated tokens, inputs are cropped to 320 tokens (75% head, 25% tail). Includes training, a prediction script, and a first evaluation on the full validation set.
+- **PII masking fixes** . The first version masked ordinary words: "flagged", "stealing", "flight", "floor", "steps", and phrases such as "charged 3 times along the way". Both address rules were tightened, alphanumeric reference codes ("ref #A1B2C3D4E5") are now masked, names are deliberately kept by team decision, and the app now tells users that personal details are hidden. 40 tests.
+- **Improved Model 3, a transformer classifier**  FLAN-T5-base fine-tuned with LoRA (rank 16 on the attention q and v projections, 0.79% of weights trainable) generates the team name from the complaint text. Redaction markers map to dedicated tokens, inputs are cropped to 320 tokens (75% head, 25% tail). Includes training, a prediction script, and a first evaluation on the full validation set.
 - **Project slide decks** (`docs/ClariCase_Architecture.pptx`, `ClariCase_Midterm.pptx`, `ClariCase_Workflow.pptx`) and a training-progress monitor (`scripts/watch_training.ps1`).
 
 ## What changed since session 07
@@ -33,7 +33,6 @@ north_star:
 - **The served model is unchanged.** The app still runs Improved Model 1, so the north star stays at 61.5%.
 
 ## User evidence
-- **TODO (team): add any user testing done this session**, or state plainly that none took place.
 - **Raw artifact**: `src/app/pii.py`, `tests/test_pii.py`, `docs/metrics/improved_model_3/`
 
 ## Metrics snapshot
@@ -71,7 +70,7 @@ north_star:
 - **Training was slow and looks unstable.** 17.4 hours for 50,000 complaints, including a stall of over two hours. The average training loss (52.8) is far above the validation loss (0.50), which suggests a problem early in training worth investigating before a full run. Batch size could be raised substantially, since most of the GPU's memory went unused.
 - **The recorded run information disagrees with the training log** (2.8 hours and torch 2.14 in `run_info.json`, against 17.4 hours and torch 2.11 in `train.log`), so it was probably overwritten by a later run.
 - **The first PII version masked ordinary words**, removing signal the model routes on ("flagged" and "stealing" in fraud complaints, "flight" in travel disputes). Found in review and fixed on the branch.
-- **Last week's other goals are in progress, without results yet.** Llama 3.2 3B fine-tuning continued but has not been evaluated, and Jev AI was explored but not yet tested on our data. The team-to-issue gap was not addressed this week.
+
 
 ## Challenges / blockers
 - **Compute.** Transformer training on a 6 GB laptop GPU is slow: a full training run at the trial run's speed would take days. Colab or a larger GPU, plus larger batches, are needed to iterate within a week.
@@ -81,15 +80,13 @@ north_star:
 
 ## Next week's goal
 - **Train Improved Model 3 properly.** Use the full training set, compensate for class imbalance so the small teams are learned, raise the batch size, and investigate the early training-loss spike. Then score it on the test set with calibration, so it can be compared on the north star.
-- **Merge the PII fixes** and mask the complaints already stored in the database.
-- **Use Jev AI for classification and fine-tuning.** Test Jev AI as a complaint classifier, since it returns a structured choice with a probability, and fine-tune it on our training data. Score it on the same test set and 95%-precision rule as Improved Model 1.
+- **Use Jev AI for classification** Test Jev AI as a complaint classifier, since it returns a structured choice with a probability
 
 ## Individual contributions
-- **Sukriti Srivastava (Product)** — Reviewed the PII masking module and fixed its false positives: tightened both address rules so words such as "flagged", "stealing" and "flight" are no longer removed, added masking for alphanumeric reference codes while keeping loan amounts intact, implemented the team's decision to keep names, and added privacy notes to the submit and track screens. Added 19 tests (branch `fix/pii-false-positives`). Explored Jev AI, how it can be used for complaint classification, and its benefits for the product. Wrote this report.
+- **Sukriti Srivastava (Product)** — Reviewed the PII masking module and fixed its false positives: tightened both address rules so words such as "flagged", "stealing" and "flight" are no longer removed, added masking for alphanumeric reference codes while keeping loan amounts intact, implemented the team's decision to keep names, and added privacy notes to the submit and track screens. Added 19 tests (branch `fix/pii-false-positives`). Wrote this report. Explore the integration of JevAI for classifictaion.
 - **Chaitanya Bagul (Engineering)** — Built Improved Model 3, the FLAN-T5-base + LoRA team classifier: tokenizer with dedicated redaction tokens, data pipeline with head-and-tail cropping, training and prediction scripts. Ran the trial training run and evaluated it on the full validation set, and added the training monitor script. (PRs #30, #31)
 - **Salman Farcy (Data and Evaluation)** — Built the PII masking module (`src/app/pii.py`): CFPB-style redaction of emails, URLs, Social Security numbers, Luhn-checked cards, phone and account numbers, addresses, ZIP codes and dates, applied at intake and at storage, with 21 tests. Reviewed and merged PRs #29–#31. (PR #29)
 - **Sriramm S S (Users and Research)** — Continued fine-tuning Llama 3.2 3B Instruct for complaint classification.
 
 ## Lean canvas changes (if any)
-- **Unique value proposition:** privacy is now part of the product. Consumers can describe a problem freely, and account numbers, cards and other identifiers are removed before anything is classified or saved.
-- **Cost structure:** the transformer path is much more expensive to train than the linear model (17.4 hours for a fifth of the data, against 4.5 hours for Improved Model 1's full run). Any accuracy gain from Model 3 will need to justify that compute cost.
+
