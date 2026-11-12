@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claricase-models"
+version = "0.0.1"
+description = "ClariCase model code (reused by platform/ services)."
+requires-python = ">=3.11"
+# Runtime deps intentionally not re-declared here — services declare what
+# they need. This package just exposes the existing src/ tree as importable.
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
