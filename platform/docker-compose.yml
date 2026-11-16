@@ -96,7 +96,12 @@ services:
       PRIOR_WINDOW: ${PRIOR_WINDOW:-5000}
       PRIOR_MIN_ROWS: ${PRIOR_MIN_ROWS:-500}
       PRIOR_REFRESH: ${PRIOR_REFRESH:-100}
+      AGENTIC_URL: ${AGENTIC_URL:-}
+      AGENTIC_TIMEOUT_S: ${AGENTIC_TIMEOUT_S:-3.0}
+      AGENTIC_ISSUE_GAP: ${AGENTIC_ISSUE_GAP:-0.3}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    volumes:
+      - ../docs/metrics/agentic:/app/docs/metrics/agentic:ro
     healthcheck:
       test: ["CMD", "python", "-c",
              "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/healthz',timeout=3).getcode()==200 else sys.exit(1)"]
@@ -109,6 +114,36 @@ services:
         condition: service_healthy
       embed-api:
         condition: service_healthy
+
+  # ---- Opt-in LLM stage (profile "agentic") --------------------------------
+  # Needs an LLM endpoint key in .env and the example pool from
+  # `python -m src.agentic.run` (or src.agentic.examples). Point ensemble-api
+  # at it with AGENTIC_URL=http://agentic-api:8000 and raise the router's
+  # PRIMARY_TIMEOUT_S (two extra calls per reviewed complaint).
+  agentic-api:
+    profiles: ["agentic"]
+    build:
+      context: ..
+      dockerfile: platform/services/agentic-api/Dockerfile
+      args:
+        ENCODER_NAME: ${ENCODER_NAME:-BAAI/bge-small-en-v1.5}
+    image: claricase/agentic-api:dev
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      AGENTIC_BACKEND: ${AGENTIC_BACKEND:-openai_compat}
+      AGENTIC_BASE_URL: ${AGENTIC_BASE_URL:-https://api.groq.com/openai/v1}
+      AGENTIC_API_KEY: ${AGENTIC_API_KEY:-}
+      AGENTIC_MODEL: ${AGENTIC_MODEL:-llama-3.3-70b-versatile}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    volumes:
+      - ../data/cache/agentic:/app/data/cache/agentic
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/healthz',timeout=2).getcode()==200 else sys.exit(1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
 volumes:
   pgdata:

@@ -6,13 +6,14 @@ DC    := docker compose
 PY    := python
 REPO_ROOT := $(shell cd .. && pwd)
 
-.PHONY: help build up up-ensemble down logs ps test smoke smoke-ensemble clean
+.PHONY: help build up up-ensemble up-agentic down logs ps test smoke smoke-ensemble clean
 
 help:
 	@echo "Targets:"
 	@echo "  build   Build all service images"
 	@echo "  up      Start the stack (detached)"
 	@echo "  up-ensemble  Start the stack plus embed-api and ensemble-api, routed through the gate"
+	@echo "  up-agentic   As up-ensemble, plus agentic-api (LLM stage) wired in"
 	@echo "  down    Stop and remove containers (keeps pgdata volume)"
 	@echo "  logs    Tail logs from all services"
 	@echo "  ps      List running services"
@@ -35,8 +36,14 @@ up-ensemble:
 	@[[ -f .env ]] || cp .env.example .env
 	PRIMARY_URL=http://ensemble-api:8000 $(DC) --profile ensemble up -d --build
 
+# Needs AGENTIC_API_KEY in .env and data/cache/agentic/example_pool.*
+up-agentic:
+	@[[ -f .env ]] || cp .env.example .env
+	PRIMARY_URL=http://ensemble-api:8000 AGENTIC_URL=http://agentic-api:8000 PRIMARY_TIMEOUT_S=12 \
+	  $(DC) --profile ensemble --profile agentic up -d --build
+
 down:
-	$(DC) --profile ensemble down
+	$(DC) --profile ensemble --profile agentic down
 
 logs:
 	$(DC) logs -f
@@ -50,6 +57,7 @@ test:
 	cd $(REPO_ROOT) && $(PY) -m pytest platform/services/router/tests -v
 	cd $(REPO_ROOT) && $(PY) -m pytest platform/services/embed-api/tests -v
 	cd $(REPO_ROOT) && $(PY) -m pytest platform/services/ensemble-api/tests -v
+	cd $(REPO_ROOT) && $(PY) -m pytest platform/services/agentic-api/tests -v
 
 smoke:
 	bash tests/smoke.sh
@@ -58,4 +66,4 @@ smoke-ensemble:
 	bash tests/smoke_ensemble.sh
 
 clean:
-	$(DC) --profile ensemble down -v
+	$(DC) --profile ensemble --profile agentic down -v

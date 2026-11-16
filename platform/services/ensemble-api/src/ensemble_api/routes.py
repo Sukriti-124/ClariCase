@@ -32,6 +32,8 @@ from claricase_platform_shared.contracts import (IssuesResponse,
                                                  PredictResponse)
 from claricase_platform_shared.logging import bind_request_id
 
+from ensemble_api import agentic as A
+
 router = APIRouter()
 log = structlog.get_logger()
 
@@ -54,6 +56,11 @@ PRIOR_ESTIMATE = Gauge("label_shift_prior",
                        "Current estimated team prior.", ["team"])
 PRIOR_ACTIVE = Gauge("label_shift_active",
                      "1 when the rolling prior estimate is in use.")
+AGENTIC_CALLS = Counter("agentic_calls_total",
+                        "Calls to agentic-api by task and outcome.",
+                        ["task", "outcome"])  # changed | kept | failed
+RESCUED = Counter("agentic_rescued_total",
+                  "Review complaints auto-routed after the LLM agreed with the stacker.")
 
 
 async def _post(client: httpx.AsyncClient, url: str, payload: dict,
@@ -95,10 +102,15 @@ async def healthz(request: Request) -> dict:
     if svm is None:
         raise HTTPException(status_code=503, detail="svm_api_unreachable")
     stack = request.app.state.stack
-    return {"status": "ok", "scenario": stack.scenario_kind,
-            "models": stack.models,
-            "svm_api": svm, "embed_api": emb if emb else "unreachable",
-            "label_shift_active": stack.prior.active}
+    out = {"status": "ok", "scenario": stack.scenario_kind,
+           "models": stack.models,
+           "svm_api": svm, "embed_api": emb if emb else "unreachable",
+           "label_shift_active": stack.prior.active}
+    if s.agentic_enabled:
+        ag = await _up(s.agentic_url)
+        out["agentic_api"] = ag if ag else "unreachable"
+        out["rescue_threshold"] = request.app.state.rescue_threshold
+    return out
 
 
 @router.get("/prior")
@@ -156,12 +168,38 @@ async def predict(body: PredictRequest, request: Request) -> JSONResponse:
         GATE_SCORE.observe(d.score)
         if d.team != svm.team:
             TEAM_OVERRIDES.inc()
-    DECISIONS.labels(scenario=d.scenario).inc()
-    CHOSEN_TEAM.labels(team=d.team, auto_route=str(d.auto_route).lower()).inc()
     PRIOR_ACTIVE.set(1 if d.prior_active else 0)
     if d.prior_active:
         for team, p in zip(stack.teams, stack.prior.prior):
             PRIOR_ESTIMATE.labels(team=team).set(float(p))
+
+    # ---- LLM stage (optional) ----
+    agentic_info: dict | None = None
+    if s.agentic_enabled and not missing:
+        agentic_info = {}
+        if not d.auto_route and d.candidates and len(d.candidates) > 1:
+            cands = d.candidates[:s.agentic_n_candidates]
+            ch = await A.ask(client, s.agentic_url, body.text, "team", cands,
+                             None, rid, s.agentic_timeout_s)
+            agentic_info["team_candidates"] = cands
+            if ch is None:
+                AGENTIC_CALLS.labels(task="team", outcome="failed").inc()
+            else:
+                agentic_info["team_choice"] = ch.choice
+                thr = request.app.state.rescue_threshold
+                rescued = (ch.choice == d.team and thr is not None
+                           and d.score >= thr)
+                AGENTIC_CALLS.labels(
+                    task="team",
+                    outcome="kept" if ch.choice == d.team else "changed").inc()
+                if rescued:
+                    RESCUED.inc()
+                    d.auto_route, d.scenario = True, "auto"
+                agentic_info["rescued"] = rescued
+                d.team = ch.choice
+
+    DECISIONS.labels(scenario=d.scenario).inc()
+    CHOSEN_TEAM.labels(team=d.team, auto_route=str(d.auto_route).lower()).inc()
 
     # Issues under the chosen team.
     issues = svm.top_issues
@@ -177,13 +215,30 @@ async def predict(body: PredictRequest, request: Request) -> JSONResponse:
             ISSUE_REFETCH.labels(result="ok").inc()
             issues = iss.top_issues
 
+    if agentic_info is not None and issues:
+        cands = A.issue_candidates(issues, s.agentic_issue_gap,
+                                   s.agentic_n_candidates)
+        if cands:
+            ch = await A.ask(client, s.agentic_url, body.text, "issue", cands,
+                             d.team, rid, s.agentic_timeout_s)
+            agentic_info["issue_candidates"] = cands
+            if ch is None:
+                AGENTIC_CALLS.labels(task="issue", outcome="failed").inc()
+            else:
+                agentic_info["issue_choice"] = ch.choice
+                AGENTIC_CALLS.labels(
+                    task="issue",
+                    outcome="kept" if ch.choice == cands[0] else "changed").inc()
+                issues = A.reorder_issues(issues, ch.choice)
+
     latency_ms = int((time.perf_counter() - t0) * 1000)
     log.info("predict_served", model=stack.model_name, team=d.team,
              gate_score=round(d.score, 4), threshold=d.threshold,
              auto_route=d.auto_route, scenario=d.scenario,
              model_teams=d.model_teams, primary_team=svm.team,
              missing_models=missing, prior_active=d.prior_active,
-             n_issues=len(issues), latency_ms=latency_ms)
+             agentic=agentic_info, n_issues=len(issues),
+             latency_ms=latency_ms)
 
     out = PredictResponse(
         model_name=stack.model_name, model_version=stack.version,
@@ -194,6 +249,7 @@ async def predict(body: PredictRequest, request: Request) -> JSONResponse:
         stack_team_probs=(None if d.stack_probs is None else
                           dict(zip(stack.teams,
                                    [float(x) for x in d.stack_probs]))),
+        agentic=agentic_info or None,
     )
     headers = {"x-routing-scenario": d.scenario}
     if missing:

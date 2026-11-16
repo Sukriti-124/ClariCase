@@ -22,13 +22,13 @@ src/app/.streamlit_secrets.toml
 .idea/
 .DS_Store
 .claude/
+.kiro/
 
 # Editable install side-effect from root pyproject.toml
 claricase_models.egg-info/
 
 # ---------------------------------------------------------------- data splits & artifacts
 data/processed/splits/
-
 
 
 # ---------------------------------------------------------------- app

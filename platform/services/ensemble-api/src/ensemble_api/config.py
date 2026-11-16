@@ -29,7 +29,22 @@ class Settings(BaseSettings):
     prior_min_rows: int = Field(default=500, alias="PRIOR_MIN_ROWS")
     prior_refresh: int = Field(default=100, alias="PRIOR_REFRESH")
 
+    # Optional LLM stage (agentic-api). Empty = off. When on, the router's
+    # PRIMARY_TIMEOUT_S should allow for one or two extra calls.
+    agentic_url: str = Field(default="", alias="AGENTIC_URL")
+    agentic_timeout_s: float = Field(default=3.0, alias="AGENTIC_TIMEOUT_S")
+    # Rescue rule fitted by src.agentic.evaluate (evaluation.json). Missing
+    # file or null threshold: the LLM's team is used but nothing is rescued.
+    agentic_policy_path: Path | None = Field(
+        default=Path("/app/docs/metrics/agentic/evaluation.json"),
+        alias="AGENTIC_POLICY_PATH")
+    agentic_issue_gap: float = Field(default=0.3, alias="AGENTIC_ISSUE_GAP")
+    agentic_n_candidates: int = Field(default=3, alias="AGENTIC_N_CANDIDATES")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
+
+    @property
+    def agentic_enabled(self) -> bool:
+        return bool(self.agentic_url.strip())
 
 
 def get_settings() -> Settings:

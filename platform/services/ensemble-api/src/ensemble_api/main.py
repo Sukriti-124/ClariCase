@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from claricase_platform_shared.logging import configure_logging
 from claricase_platform_shared.telemetry import setup_observability
 
+from ensemble_api.agentic import load_rescue_threshold
 from ensemble_api.config import get_settings
 from ensemble_api.routes import router as http_router
 from ensemble_api.stack_model import load_stack
@@ -21,6 +22,9 @@ async def lifespan(app: FastAPI):
         settings.stack_path, window=settings.prior_window,
         min_rows=settings.prior_min_rows, refresh=settings.prior_refresh,
         label_shift=settings.label_shift_enabled)
+    app.state.rescue_threshold = (
+        load_rescue_threshold(settings.agentic_policy_path)
+        if settings.agentic_enabled else None)
     app.state.http = httpx.AsyncClient()
     try:
         yield

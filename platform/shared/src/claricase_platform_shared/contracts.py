@@ -51,6 +51,10 @@ class PredictResponse(BaseModel):
     # ensemble-api: the stacker's probability for every team, after the
     # label-shift correction when it is active.
     stack_team_probs: dict[str, float] | None = None
+    # ensemble-api, when agentic-api is on: what the LLM was asked and chose.
+    # Keys: team_candidates, team_choice, rescued, issue_candidates,
+    # issue_choice. Absent when the LLM was not consulted.
+    agentic: dict | None = None
 
     @field_validator("team_probs", "stack_team_probs")
     @classmethod
@@ -76,5 +80,26 @@ class IssuesResponse(BaseModel):
     model_version: str
     team: str
     top_issues: list[IssueProb]
+    request_id: str
+    latency_ms: int = Field(ge=0)
+
+
+class ChooseRequest(BaseModel):
+    """agentic-api: pick one of the ML's candidates for a complaint."""
+    text: str = Field(min_length=10)
+    task: Literal["team", "issue"]
+    candidates: list[str] = Field(min_length=1, max_length=5)
+    # Required for task == "issue": the team the candidates belong to.
+    team: str | None = None
+    request_id: str | None = None
+
+
+class ChooseResponse(BaseModel):
+    model_name: str
+    model_version: str
+    task: Literal["team", "issue"]
+    choice: str
+    parsed: bool
+    cached: bool
     request_id: str
     latency_ms: int = Field(ge=0)

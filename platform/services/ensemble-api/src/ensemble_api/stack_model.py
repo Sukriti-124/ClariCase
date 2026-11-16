@@ -51,6 +51,7 @@ class Decision:
     stack_probs: np.ndarray | None
     model_teams: dict[str, str]
     prior_active: bool
+    candidates: list[str] | None = None   # top teams, chosen first
 
 
 class StackBundle:
@@ -120,10 +121,12 @@ class StackBundle:
             scenario = "assisted"
         else:
             scenario = "contested"
+        order = np.argsort(-P, kind="stable")[:3]
         return Decision(team=team, score=score, auto_route=auto,
                         scenario=scenario, threshold=self.threshold_for(team),
                         stack_probs=stack_probs, model_teams=model_teams,
-                        prior_active=self.prior.active)
+                        prior_active=self.prior.active,
+                        candidates=[self.teams[int(k)] for k in order])
 
     def fallback(self, primary_probs: dict[str, float]) -> Decision:
         P = self._vec(primary_probs)

@@ -1,8 +1,13 @@
+import json
+
 import httpx
 import pytest
 import respx
+from fastapi.testclient import TestClient
 
 from tests.conftest import probs_for
+
+TEAMS_SET = {f"T{i:02d}" for i in range(1, 12)}
 
 TEXT = "The bank reported wrong information to the credit bureau after many disputes."
 SVM = "http://svm-api.test"
@@ -183,3 +188,118 @@ def test_metrics_expose_routing_counters(client):
 
 def test_short_text_is_rejected(client):
     assert client.post("/predict", json={"text": "short"}).status_code == 422
+
+
+# ---- agentic stage ----------------------------------------------------------------
+
+AG = "http://agentic-api.test"
+
+
+@pytest.fixture
+def agentic_client(stack_path, tmp_path, monkeypatch):
+    policy = tmp_path / "evaluation.json"
+    policy.write_text('{"rescue_rule": {"threshold": 0.5}}')
+    monkeypatch.setenv("STACK_PATH", str(stack_path))
+    monkeypatch.setenv("SVM_API_URL", SVM)
+    monkeypatch.setenv("EMBED_API_URL", EMB)
+    monkeypatch.setenv("AGENTIC_URL", AG)
+    monkeypatch.setenv("AGENTIC_POLICY_PATH", str(policy))
+    monkeypatch.setenv("AGENTIC_ISSUE_GAP", "0.5")
+    from ensemble_api.main import create_app
+    with TestClient(create_app()) as c:
+        yield c
+
+
+def _choose(choice, task="team"):
+    return httpx.Response(200, json={
+        "model_name": "agentic:mock", "model_version": "v", "task": task,
+        "choice": choice, "parsed": True, "cached": False, "request_id": "r",
+        "latency_ms": 2})
+
+
+def _contested():
+    _mock(svm=svm_resp("T01", 0.45, b2_team="T01", b2_conf=0.4),
+          emb=emb_resp("T02", 0.45, knn_team="T02", knn_conf=0.4))
+    respx.post(f"{SVM}/issues").mock(return_value=httpx.Response(
+        200, json={"model_name": "improved_model_1", "model_version": "sha256:a",
+                   "team": "T02", "request_id": "r", "latency_ms": 1,
+                   "top_issues": [{"issue": "T02_I001", "prob": 0.5},
+                                  {"issue": "T02_I004", "prob": 0.4}]}))
+
+
+@respx.mock
+def test_llm_is_not_asked_when_auto_routed(agentic_client):
+    _mock()
+    route = respx.post(f"{AG}/choose").mock(return_value=_choose("T01"))
+    body = agentic_client.post("/predict", json={"text": TEXT}).json()
+    assert body["scenario"] == "auto"
+    # Issues: top-2 gap is 0.3 < 0.5, so the issue question IS asked.
+    assert route.called
+    sent = route.calls[0].request.read().decode()
+    assert '"task": "issue"' in sent or '"task":"issue"' in sent
+    assert body["agentic"]["issue_candidates"] == ["T01_I005", "T01_I004"]
+
+
+@respx.mock
+def test_review_row_asks_team_and_llm_pick_wins(agentic_client):
+    _contested()
+    calls = []
+
+    def _answer(request):
+        payload = json.loads(request.read())
+        calls.append(payload)
+        if payload["task"] == "team":
+            return _choose("T02")
+        return _choose("T02_I004", "issue")
+
+    respx.post(f"{AG}/choose").mock(side_effect=_answer)
+    body = agentic_client.post("/predict", json={"text": TEXT}).json()
+    assert calls[0]["task"] == "team" and calls[0]["candidates"][0] in TEAMS_SET
+    assert body["team"] == "T02"
+    assert body["agentic"]["team_choice"] == "T02"
+    assert body["top_issues"][0]["issue"] == "T02_I004"   # LLM pick first
+    assert {r["issue"] for r in body["top_issues"]} == {"T02_I001", "T02_I004"}
+    assert calls[1]["task"] == "issue" and calls[1]["team"] == "T02"
+
+
+@respx.mock
+def test_rescue_only_when_llm_agrees_and_score_clears_threshold(agentic_client):
+    _contested()
+    respx.post(f"{AG}/choose").mock(side_effect=_agree)
+    body = agentic_client.post("/predict", json={"text": TEXT}).json()
+    stack_team = body["agentic"]["team_candidates"][0]
+    assert body["team"] == stack_team
+    # Threshold is 0.5: rescued iff the gate score cleared it.
+    assert body["agentic"]["rescued"] == (body["team_confidence"] >= 0.5)
+    assert body["auto_route"] == body["agentic"]["rescued"]
+
+
+def _agree(request):
+    payload = json.loads(request.read())
+    return _choose(payload["candidates"][0], payload["task"])
+
+
+@respx.mock
+def test_agentic_failure_leaves_ml_answer_unchanged(agentic_client):
+    _contested()
+    respx.post(f"{AG}/choose").mock(side_effect=httpx.ConnectError("down"))
+    body = agentic_client.post("/predict", json={"text": TEXT}).json()
+    assert body["scenario"] == "contested" and body["auto_route"] is False
+    assert body["team"] == body["agentic"]["team_candidates"][0]
+    assert "team_choice" not in body["agentic"]
+
+
+@respx.mock
+def test_agentic_choice_outside_candidates_is_ignored(agentic_client):
+    _contested()
+    respx.post(f"{AG}/choose").mock(return_value=_choose("T09"))
+    body = agentic_client.post("/predict", json={"text": TEXT}).json()
+    assert body["team"] == body["agentic"]["team_candidates"][0]
+    assert "team_choice" not in body["agentic"]
+
+
+@respx.mock
+def test_agentic_off_by_default_has_no_agentic_field(client):
+    _mock()
+    body = client.post("/predict", json={"text": TEXT}).json()
+    assert body["agentic"] is None

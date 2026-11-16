@@ -80,3 +80,17 @@ def test_new_optional_fields_round_trip_and_validate():
                          top_issues=[IssueProb(issue="T02_I001", prob=0.4)],
                          request_id="r", latency_ms=2)
     assert out.top_issues[0].issue == "T02_I001"
+
+
+def test_choose_contract():
+    from claricase_platform_shared.contracts import ChooseRequest, ChooseResponse
+    req = ChooseRequest(text="A" * 20, task="team", candidates=["T01", "T02"])
+    assert req.team is None
+    with pytest.raises(ValidationError):
+        ChooseRequest(text="A" * 20, task="team", candidates=[])
+    with pytest.raises(ValidationError):
+        ChooseRequest(text="A" * 20, task="verdict", candidates=["T01"])
+    out = ChooseResponse(model_name="m", model_version="v", task="issue",
+                         choice="T02_I001", parsed=True, cached=False,
+                         request_id="r", latency_ms=5)
+    assert out.choice == "T02_I001"
