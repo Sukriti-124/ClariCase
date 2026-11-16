@@ -16,7 +16,20 @@ COLUMNS = [
     "joint_exact", "north_star_coverage_95", "precision_at_95_threshold",
     "per_team_thr_coverage_95", "teams_below_floor", "ece",
     "n_eval", "git_commit",
+    # Added 2026-11-15 when the north star moved to 90% precision.
+    "north_star_coverage_90", "precision_at_90_threshold",
 ]
+
+
+def north_star_columns(ns: dict) -> dict:
+    """Registry columns for both the 95% and 90% operating points of a
+    north-star summary. Missing points are left blank."""
+    out = {}
+    for pct in (95, 90):
+        pt = (ns.get("operating_points") or {}).get(f"at_{pct}p") or {}
+        out[f"north_star_coverage_{pct}"] = pt.get("coverage")
+        out[f"precision_at_{pct}_threshold"] = pt.get("precision")
+    return out
 
 
 def _git_commit() -> str:

@@ -1,0 +1,114 @@
+name: claricase-platform
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  svm-api:
+    build:
+      context: ..
+      dockerfile: platform/services/svm-api/Dockerfile
+    image: claricase/svm-api:dev
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL}
+      MODEL_PATH: ${MODEL_PATH}
+      BASELINE2_MODEL_PATH: ${BASELINE2_MODEL_PATH:-/app/docs/metrics/baseline_model_2/model.joblib}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/healthz',timeout=2).getcode()==200 else sys.exit(1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  router:
+    build:
+      context: ..
+      dockerfile: platform/services/router/Dockerfile
+    image: claricase/router:dev
+    environment:
+      PRIMARY_URL: ${PRIMARY_URL}
+      LOG_LEVEL: ${LOG_LEVEL}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+    ports:
+      - "${ROUTER_PORT}:8000"
+    depends_on:
+      svm-api:
+        condition: service_healthy
+
+  # ---- Opt-in model services (profile "ensemble") --------------------------
+  # Not started by plain `docker compose up`, so the Phase 1 slice is unchanged.
+  # Both need trained artifacts first; see platform/README.md.
+  embed-api:
+    profiles: ["ensemble"]
+    build:
+      context: ..
+      dockerfile: platform/services/embed-api/Dockerfile
+      args:
+        ENCODER_NAME: ${ENCODER_NAME:-BAAI/bge-small-en-v1.5}
+    image: claricase/embed-api:dev
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      KNN_INDEX_PATH: /app/data/cache/knn_embed/index.npz
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    # The nearest-neighbour index (~200 MB, written by
+    # `python -m src.ensemble.export_predictions`) is mounted, not baked in.
+    # Without it embed-api still serves improved_model_2 and ensemble-api
+    # falls back to the primary-alone policy.
+    volumes:
+      - ../data/cache/knn_embed:/app/data/cache/knn_embed:ro
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/healthz',timeout=2).getcode()==200 else sys.exit(1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  ensemble-api:
+    profiles: ["ensemble"]
+    build:
+      context: ..
+      dockerfile: platform/services/ensemble-api/Dockerfile
+    image: claricase/ensemble-api:dev
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SVM_API_URL: ${SVM_API_URL:-http://svm-api:8000}
+      EMBED_API_URL: ${EMBED_API_URL:-http://embed-api:8000}
+      UPSTREAM_TIMEOUT_S: ${UPSTREAM_TIMEOUT_S:-4.0}
+      LABEL_SHIFT_ENABLED: ${LABEL_SHIFT_ENABLED:-true}
+      PRIOR_WINDOW: ${PRIOR_WINDOW:-5000}
+      PRIOR_MIN_ROWS: ${PRIOR_MIN_ROWS:-500}
+      PRIOR_REFRESH: ${PRIOR_REFRESH:-100}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/healthz',timeout=3).getcode()==200 else sys.exit(1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    depends_on:
+      svm-api:
+        condition: service_healthy
+      embed-api:
+        condition: service_healthy
+
+volumes:
+  pgdata:

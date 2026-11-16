@@ -31,6 +31,11 @@ ISSUE_VARIANT_MERGES = {"T01_I007": "T01_I008",
                         "T01_I003": "T01_I001"}
 
 PRECISION_TARGETS = (0.95, 0.90, 0.85)
+# North star: share of complaints auto-routed at this precision or better.
+# Moved from 0.95 to 0.90 on 2026-11-15. Every target in PRECISION_TARGETS is
+# still computed and saved, so 95% numbers stay comparable with older runs.
+NORTH_STAR_TARGET = 0.90
+NORTH_STAR_KEY = f"at_{int(NORTH_STAR_TARGET * 100)}p"
 TEAM_PRECISION_FLOOR = 0.85
 MIN_ROUTED = 50
 N_BOOTSTRAP = 1000

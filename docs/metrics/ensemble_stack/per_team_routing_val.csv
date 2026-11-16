@@ -1,0 +1,12 @@
+team_id,team_name,n_eval,n_routed_to,precision_routed,auto_routed_share,meets_floor
+T01,Credit Reporting Team,93050,91211,0.9349,0.945,True
+T02,Debt Collection Team,21298,13822,0.8577,0.7478,True
+T03,Credit Card Team,10517,8038,0.869,0.8238,True
+T04,Banking Accounts Team,11332,9711,0.8588,0.7984,True
+T05,Money Transfers & Digital Currency Team,5173,2568,0.8641,0.5817,True
+T06,Mortgage Team,3651,3484,0.9156,0.9129,True
+T07,Student Loan Team,1960,1564,0.8676,0.8566,True
+T08,Vehicle Finance Team,3128,2246,0.8651,0.7535,True
+T09,Personal & Short-Term Loans Team,1808,534,0.8783,0.4397,True
+T10,Prepaid Card Team,1026,484,0.8802,0.615,True
+T11,Debt & Credit Management Team,559,0,,0.5098,
