@@ -20,6 +20,13 @@ from pydantic import BaseModel, Field, field_validator
 
 Scenario = Literal["auto", "assisted", "contested", "degraded"]
 
+# Explanation state (Req 17.2):
+#   pending      generation queued or running
+#   ready        an Explanation is stored
+#   failed       generation ended without a stored Explanation
+#   unavailable  explanation generation is disabled for this request
+ExplanationStatus = Literal["pending", "ready", "failed", "unavailable"]
+
 
 class IssueProb(BaseModel):
     issue: str
@@ -55,6 +62,10 @@ class PredictResponse(BaseModel):
     # Keys: team_candidates, team_choice, rescued, issue_candidates,
     # issue_choice. Absent when the LLM was not consulted.
     agentic: dict | None = None
+    # ensemble-api: state of the explanation for this request, fetched later
+    # from GET /explain/{request_id}. Absent when the service does not
+    # produce explanations (Req 17.2).
+    explanation_status: ExplanationStatus | None = None
 
     @field_validator("team_probs", "stack_team_probs")
     @classmethod
@@ -103,3 +114,37 @@ class ChooseResponse(BaseModel):
     cached: bool
     request_id: str
     latency_ms: int = Field(ge=0)
+
+
+class ExplainSectionsRequest(BaseModel):
+    """Internal: ensemble-api asks svm-api / embed-api for their explanation
+    sections for a complaint it has already routed."""
+    text: str = Field(min_length=1)
+    masked_text: str
+    chosen_team: str
+    served_issues: list[str] = []
+    request_id: str
+
+
+class ExplainSectionsResponse(BaseModel):
+    """Section JSON keyed by model name. Kept as plain dicts so the Platform
+    images do not depend on src.explain; ensemble-api validates them with
+    src.explain.record."""
+    sections: dict[str, dict]
+    model_versions: dict[str, str]
+
+
+class ExplainResponse(BaseModel):
+    """GET /explain/{request_id} (Req 17.6): only request_id and
+    explanation_status are required."""
+    request_id: str
+    explanation_status: ExplanationStatus
+    consumer_summary: str | None = None
+    agent_summary: str | None = None
+    cited_facts: list[dict] | None = None
+    source: Literal["llm", "template"] | None = None
+    validation: dict | None = None
+    reason: str | None = None
+    # Agent role only: routing outcome and sections, and the audit trail.
+    decision_record: dict | None = None
+    audit: list[dict] | None = None

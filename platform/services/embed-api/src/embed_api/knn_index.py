@@ -29,6 +29,20 @@ class KnnIndex:
         if teams != list(TEAMS):
             raise RuntimeError(f"index team order {teams} != {list(TEAMS)}")
         self.n = len(self.X)
+        # Optional arrays: older indexes may lack issue labels or complaint
+        # ids; the team vote never needs them.
+        files = set(z.files)
+        self.issue_idx = (z["issue_idx"].astype(np.int64)
+                          if "issue_idx" in files else None)
+        self.issues = ([str(i) for i in z["issues"]]
+                       if "issues" in files else None)
+        self.complaint_ids = (z["complaint_ids"]
+                              if "complaint_ids" in files else None)
+        for name in ("team_idx", "issue_idx", "complaint_ids"):
+            arr = getattr(self, name)
+            if arr is not None and len(arr) != self.n:
+                raise RuntimeError(f"index {name} has {len(arr)} rows, "
+                                   f"embeddings have {self.n}")
 
     def check_encoder(self, encoder_name: str, max_seq_length: int) -> None:
         if (encoder_name, max_seq_length) != (self.encoder_name,
@@ -38,10 +52,16 @@ class KnnIndex:
                 f"(len {self.max_seq_length}) but the model uses "
                 f"{encoder_name} (len {max_seq_length}); rebuild the index")
 
-    def team_vote(self, q: np.ndarray) -> np.ndarray:
+    def neighbours(self, q: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """(sims, idx) for one query, each with min(k, n) entries, most
+        similar first."""
         sims, idx = topk_neighbours(self.X, np.asarray(q, np.float32)[None, :],
                                     self.k, backend="numpy")
-        return vote(idx, sims, self.team_idx, len(TEAMS))[0]
+        return sims[0], idx[0]
+
+    def team_vote(self, q: np.ndarray) -> np.ndarray:
+        sims, idx = self.neighbours(q)
+        return vote(idx[None, :], sims[None, :], self.team_idx, len(TEAMS))[0]
 
 
 def load_index(path: Path | None) -> KnnIndex | None:

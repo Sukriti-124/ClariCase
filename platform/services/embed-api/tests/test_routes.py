@@ -53,3 +53,18 @@ def test_response_carries_probs_and_vote(app_env):
         assert set(body["team_probs"]) == {f"T{i:02d}" for i in range(1, 12)}
         assert "knn_embed" in body["extra_team_probs"]
         assert client.get("/healthz").json()["extra_models"] == ["knn_embed"]
+
+
+def test_explain_smoke_returns_both_sections(app_env):
+    from src.explain.record import SECTION_MODELS
+    with TestClient(create_app()) as client:
+        resp = client.post("/explain", json={
+            "text": TEXT, "masked_text": TEXT, "chosen_team": "T06",
+            "request_id": "rid-explain-1"})
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert set(body["sections"]) == {"improved_model_2", "knn_embed"}
+        for name, sec in body["sections"].items():
+            SECTION_MODELS[name].model_validate(sec)
+            assert sec["status"] == "ok", sec
+        assert body["model_versions"]["improved_model_2"].startswith("sha256:")

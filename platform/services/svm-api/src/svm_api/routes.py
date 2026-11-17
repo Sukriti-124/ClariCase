@@ -10,6 +10,8 @@ from fastapi import APIRouter, HTTPException, Request
 from prometheus_client import Counter, Histogram
 
 from claricase_platform_shared.contracts import (
+    ExplainSectionsRequest,
+    ExplainSectionsResponse,
     IssueProb,
     IssuesRequest,
     IssuesResponse,
@@ -100,4 +102,55 @@ def issues(body: IssuesRequest, request: Request) -> IssuesResponse:
         model_name=bundle.model_name, model_version=bundle.version,
         team=body.team, top_issues=[IssueProb(**r) for r in rows],
         request_id=rid, latency_ms=latency_ms,
+    )
+
+
+BM2_NOT_LOADED = "baseline_model_2 not loaded"
+
+
+@router.post("/explain", response_model=ExplainSectionsResponse)
+def explain(body: ExplainSectionsRequest, request: Request) -> ExplainSectionsResponse:
+    """Internal: the improved_model_1 and baseline_model_2 explanation sections
+    for a complaint ensemble-api has already routed (design: platform
+    integration). Explainer failures become ``error`` sections; the route
+    itself only fails if the model bundle is missing."""
+    # Imported here so /predict and /issues never depend on src.explain.
+    from src.explain.explainers import run_explainer, skipped_section
+    from src.explain.explainers.bm2 import explain_bm2
+    from src.explain.explainers.im1 import explain_im1
+
+    bind_request_id(body.request_id)
+    bundle = getattr(request.app.state, "bundle", None)
+    if bundle is None:
+        raise HTTPException(status_code=503, detail="model_not_loaded")
+
+    t0 = time.perf_counter()
+    raw = bundle.raw
+    im1 = run_explainer(
+        "improved_model_1", explain_im1,
+        raw["vectorizer"], raw["model"], raw.get("team_classes"),
+        body.text, body.masked_text, body.chosen_team,
+        served_issues=body.served_issues,
+        feature_names=bundle.im1_feature_names,
+    )
+    versions = {"improved_model_1": bundle.version}
+    if bundle.baseline2 is None:
+        bm2 = skipped_section("baseline_model_2", BM2_NOT_LOADED)
+    else:
+        bm2 = run_explainer(
+            "baseline_model_2", explain_bm2,
+            bundle.baseline2, body.text, body.masked_text, body.chosen_team,
+            feature_names=bundle.bm2_feature_names,
+        )
+        versions["baseline_model_2"] = bundle.baseline2_version
+
+    latency_ms = int((time.perf_counter() - t0) * 1000)
+    log.info("explain_served", im1_status=im1.status, bm2_status=bm2.status,
+             latency_ms=latency_ms)
+    return ExplainSectionsResponse(
+        sections={
+            "improved_model_1": im1.model_dump(mode="json"),
+            "baseline_model_2": bm2.model_dump(mode="json"),
+        },
+        model_versions=versions,
     )

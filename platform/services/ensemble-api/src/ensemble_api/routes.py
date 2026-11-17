@@ -18,6 +18,7 @@ GET /prior shows the live label-shift estimate; POST /prior/reset clears it.
 from __future__ import annotations
 
 import asyncio
+import hmac
 import time
 import uuid
 
@@ -25,9 +26,12 @@ import httpx
 import structlog
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
+from starlette.background import BackgroundTask
 from prometheus_client import Counter, Gauge, Histogram
 
-from claricase_platform_shared.contracts import (IssuesResponse,
+from claricase_platform_shared.contracts import (ExplainSectionsRequest,
+                                                 ExplainSectionsResponse,
+                                                 IssuesResponse,
                                                  PredictRequest,
                                                  PredictResponse)
 from claricase_platform_shared.logging import bind_request_id
@@ -86,6 +90,111 @@ def _collect(resp: PredictResponse | None, own_name: str) -> dict:
     return out
 
 
+_SERVICE_SECTIONS = {
+    "svm-api": ("improved_model_1", "baseline_model_2"),
+    "embed-api": ("improved_model_2", "knn_embed"),
+}
+EXPLAIN_NARRATE_TIMEOUT_S = 120
+
+
+def _outcome_dict(d, issues, agentic_info) -> dict:
+    """The served decision in the Decision_Record's Outcome shape."""
+    from src.explain import labels as L
+    from src.explain.labels import display_label
+    tables = L.load_tables()
+    by_label = {e.label: (i, e) for i, e in tables.issues.items()}
+    refs = []
+    for n, it in enumerate(issues[:3], 1):
+        if it.issue in tables.issues:
+            iid, e = it.issue, tables.issues[it.issue]
+        elif it.issue in by_label:
+            iid, e = by_label[it.issue]
+        else:
+            iid, e = it.issue, None
+        label = e.label if e else it.issue
+        refs.append({"rank": n, "issue_id": iid, "label": label,
+                     "display_label": e.display_label if e
+                     else display_label(label), "prob": it.prob})
+    probs = [r["prob"] for r in refs]
+    ordered = all(a >= b for a, b in zip(probs, probs[1:]))
+    return {
+        "chosen_team": {"id": d.team,
+                        "name": tables.teams.get(d.team, d.team)},
+        "top_issues": refs,
+        "issue_order": ("probability" if ordered or not (
+            agentic_info and "issue_choice" in agentic_info) else "agentic"),
+        "auto_route": bool(d.auto_route),
+        "route": "auto" if d.auto_route else "review",
+        "scenario": d.scenario,
+    }
+
+
+async def _fetch_explain(client, url: str, payload: dict, timeout: float,
+                         service: str):
+    from src.explain.pipeline import UpstreamFailure
+    try:
+        resp = await client.post(f"{url}/explain", json=payload,
+                                 timeout=timeout)
+        if resp.status_code != 200:
+            raise ValueError(resp.status_code)
+        return ExplainSectionsResponse(**resp.json())
+    except Exception:
+        return UpstreamFailure(service)
+
+
+async def explain_platform_task(app, ctx, text: str, rid: str, outcome: dict,
+                                model_versions: dict, timings: dict) -> None:
+    """Background: build the sections, store the record, start narration.
+    Never raises and never touches the served response."""
+    try:
+        from src.app.pii import mask
+        from src.explain.pipeline import (UpstreamFailure, explain_platform,
+                                          narrate_and_store)
+        st = app.state
+        s = st.settings
+        masked = mask(text)
+        req = ExplainSectionsRequest(
+            text=text, masked_text=masked, chosen_team=outcome["chosen_team"]["id"],
+            served_issues=[i["issue_id"] for i in outcome["top_issues"]],
+            request_id=rid).model_dump()
+        missing = set(ctx.missing_models or ())
+        svm_r, emb_r = await asyncio.gather(
+            _fetch_explain(st.http, s.svm_api_url, req, s.upstream_timeout_s,
+                           "svm-api"),
+            _fetch_explain(st.http, s.embed_api_url, req, s.upstream_timeout_s,
+                           "embed-api"))
+        upstream: dict = {}
+        versions = dict(model_versions)
+        for service, r in (("svm-api", svm_r), ("embed-api", emb_r)):
+            if isinstance(r, UpstreamFailure):
+                for name in _SERVICE_SECTIONS[service]:
+                    upstream[name] = r
+            else:
+                upstream.update(r.sections)
+                versions.update(r.model_versions)
+        sections = await asyncio.to_thread(explain_platform, ctx, upstream)
+        narrator = st.explain_narrator
+        deadline = narrator.clock() + st.explain_cfg.deadline_s("platform")
+        coro = asyncio.wait_for(asyncio.to_thread(
+            narrate_and_store, store=st.explain_store, narrator=narrator,
+            request_id=rid, serving_path="platform", model_versions=versions,
+            outcome=outcome, sections=sections, raw_text=text,
+            masked_text=masked, deadline=deadline, timings=timings),
+            EXPLAIN_NARRATE_TIMEOUT_S)
+        task = asyncio.create_task(coro)
+        st.explain_tasks.add(task)
+
+        def _done(t):
+            st.explain_tasks.discard(t)
+            if not t.cancelled() and t.exception() is not None:
+                log.warning("explain_narration_failed", request_id=rid,
+                            error=type(t.exception()).__name__)
+        task.add_done_callback(_done)
+    except Exception as exc:
+        log.warning("explain_task_failed", request_id=rid,
+                    error=type(exc).__name__)
+
+
 @router.get("/healthz")
 async def healthz(request: Request) -> dict:
     client: httpx.AsyncClient = request.app.state.http
@@ -106,11 +215,68 @@ async def healthz(request: Request) -> dict:
            "models": stack.models,
            "svm_api": svm, "embed_api": emb if emb else "unreachable",
            "label_shift_active": stack.prior.active}
+    ncfg = getattr(request.app.state, "explain_cfg", None)
+    out["narrator"] = {"enabled": bool(getattr(ncfg, "enabled", False)),
+                       "backend": getattr(ncfg, "backend", None),
+                       "model": getattr(ncfg, "model", None)}
     if s.agentic_enabled:
         ag = await _up(s.agentic_url)
         out["agentic_api"] = ag if ag else "unreachable"
         out["rescue_threshold"] = request.app.state.rescue_threshold
     return out
+
+
+AGENT_TOKEN_HEADER = "X-ClariCase-Agent-Token"
+EXPLAIN_WATCHDOG_S = 120
+WATCHDOG_REASON = "explanation timed out after 120 s"
+
+
+def _is_agent(request: Request) -> bool:
+    cfg = getattr(request.app.state, "explain_cfg", None)
+    token = getattr(cfg, "agent_token", "") or ""
+    if not token:
+        return False
+    sent = request.headers.get(AGENT_TOKEN_HEADER) or ""
+    return hmac.compare_digest(sent.encode("utf-8"), token.encode("utf-8"))
+
+
+@router.get("/explain/{request_id}")
+def explain_get(request_id: str, request: Request) -> JSONResponse:
+    store = getattr(request.app.state, "explain_store", None)
+    entry = store.get(request_id) if store is not None else None
+    if entry is None:
+        return JSONResponse(status_code=404, content={
+            "error_code": "explanation_not_found", "request_id": request_id})
+    if (entry.status == "pending"
+            and store._clock() - entry.inserted_at > EXPLAIN_WATCHDOG_S):
+        store.mark_failed(request_id, WATCHDOG_REASON)
+        entry = store.get(request_id) or entry
+        entry.status = "failed"
+        entry.failure = {"reason": WATCHDOG_REASON}
+    status = entry.status
+    body: dict = {"request_id": request_id, "explanation_status": status}
+    ex = entry.explanation
+    reason = (entry.failure or {}).get("reason")
+    if status == "ready" and ex is not None:
+        body["consumer_summary"] = ex.consumer_summary
+    elif status == "failed" and not reason:
+        reason = "explanation failed"
+    if _is_agent(request):
+        if ex is not None and status == "ready":
+            body.update(
+                agent_summary=ex.agent_summary,
+                cited_facts=[f.model_dump(mode="json") for f in ex.cited_facts],
+                source=ex.source, validation=ex.validation.model_dump(mode="json"))
+            reason = reason or (ex.fallback_reason if ex.source == "template"
+                                else None)
+        body["reason"] = reason
+        body["decision_record"] = (entry.record.model_dump(mode="json")
+                                   if entry.record is not None else None)
+        body["audit"] = [a.model_dump(mode="json") for a in entry.audit]
+    elif status == "failed":
+        body["reason"] = reason
+    return JSONResponse(status_code=202 if status == "pending" else 200,
+                        content=body)
 
 
 @router.get("/prior")
@@ -172,6 +338,8 @@ async def predict(body: PredictRequest, request: Request) -> JSONResponse:
     if d.prior_active:
         for team, p in zip(stack.teams, stack.prior.prior):
             PRIOR_ESTIMATE.labels(team=team).set(float(p))
+
+    pre_llm_team, pre_llm_auto = d.team, bool(d.auto_route)
 
     # ---- LLM stage (optional) ----
     agentic_info: dict | None = None
@@ -254,5 +422,33 @@ async def predict(body: PredictRequest, request: Request) -> JSONResponse:
     headers = {"x-routing-scenario": d.scenario}
     if missing:
         headers["x-missing-models"] = ",".join(missing)
-    return JSONResponse(status_code=200, content=out.model_dump(),
-                        headers=headers)
+
+    # ---- Explanation (after latency_ms; never affects the response) ----
+    task = None
+    status = "unavailable"
+    st = request.app.state
+    if getattr(st, "explain_store", None) is not None:
+        try:
+            from src.explain.explainers.routing import PlatformDecisionContext
+            ctx = PlatformDecisionContext(
+                decision=d, bundle=stack, pre_llm_team=pre_llm_team,
+                pre_llm_auto=pre_llm_auto, missing_models=tuple(missing),
+                agentic_info=agentic_info, rescue_threshold=getattr(
+                    st, "rescue_threshold", None),
+                text=body.text, request_id=rid, probs=probs,
+                served_issues=tuple(i.issue for i in issues),
+                svm_team=svm.team)
+            outcome = _outcome_dict(d, issues, agentic_info)
+            versions = {"ensemble": stack.version}
+            task = BackgroundTask(
+                explain_platform_task, request.app, ctx, body.text, rid,
+                outcome, versions, {"predict_ms": latency_ms})
+            status = "pending"
+        except Exception as exc:
+            log.warning("explain_setup_failed", request_id=rid,
+                        error=type(exc).__name__)
+            task = None
+    content = out.model_dump()
+    content["explanation_status"] = status
+    return JSONResponse(status_code=200, content=content, headers=headers,
+                        background=task)

@@ -43,6 +43,10 @@ class ModelBundle:
     baseline2: Any = None
     baseline2_version: str | None = None
     extra_models: tuple[str, ...] = field(default=())
+    # Cached at load time so /explain does not rebuild the vocabulary per
+    # request (get_feature_names_out is O(vocabulary)).
+    im1_feature_names: Any = None
+    bm2_feature_names: Any = None
 
     # ---- improved_model_1 ----
     def _team_probs(self, X) -> np.ndarray:
@@ -88,15 +92,28 @@ class ModelBundle:
         return self.issues_for_team(X, team, top_k)
 
 
+def _bm2_feature_names(calibrated) -> Any:
+    """The TF-IDF vocabulary inside baseline_model_2, or None if the artifact
+    does not have the expected structure (explain_bm2 then reports the error)."""
+    try:
+        from src.explain.explainers.bm2 import inner_pipeline
+        return inner_pipeline(calibrated).named_steps["tfidf"].get_feature_names_out()
+    except Exception:
+        return None
+
+
 def load_bundle(path: Path, baseline2_path: Path | None = None) -> ModelBundle:
     raw = joblib.load(path)
-    b2 = b2_version = None
+    b2 = b2_version = b2_names = None
     extra: tuple[str, ...] = ()
     if baseline2_path is not None and Path(baseline2_path).exists():
         b2 = joblib.load(baseline2_path)
         b2_version = _fingerprint(Path(baseline2_path))
+        b2_names = _bm2_feature_names(b2)
         extra = ("baseline_model_2",)
     return ModelBundle(
+        im1_feature_names=raw["vectorizer"].get_feature_names_out(),
+        bm2_feature_names=b2_names,
         raw=raw,
         version=_fingerprint(path),
         model_name=raw.get("model_name", "improved_model_1"),

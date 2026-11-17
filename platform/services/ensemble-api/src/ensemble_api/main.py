@@ -1,4 +1,5 @@
 """ensemble-api FastAPI application factory."""
+import logging
 from contextlib import asynccontextmanager
 
 import httpx
@@ -25,6 +26,26 @@ async def lifespan(app: FastAPI):
     app.state.rescue_threshold = (
         load_rescue_threshold(settings.agentic_policy_path)
         if settings.agentic_enabled else None)
+    app.state.explain_tasks = set()
+    app.state.explain_cfg = None
+    app.state.explain_cache = None
+    app.state.explain_narrator = None
+    app.state.explain_store = None
+    if settings.explanations_enabled:
+        from src.explain.cache import ExplanationCache
+        from src.explain.config import load_config, log_startup
+        from src.explain.narrator import Narrator
+        from src.explain.store import ExplanationStore
+
+        cfg = load_config()
+        log_startup(cfg, logging.getLogger("ensemble_api.explain"))
+        app.state.explain_cfg = cfg
+        app.state.explain_cache = ExplanationCache()
+        app.state.explain_narrator = Narrator(
+            cfg, explanation_cache=app.state.explain_cache)
+        app.state.explain_store = ExplanationStore(
+            ttl_s=settings.explain_store_ttl_s,
+            max_ids=settings.explain_store_max)
     app.state.http = httpx.AsyncClient()
     try:
         yield

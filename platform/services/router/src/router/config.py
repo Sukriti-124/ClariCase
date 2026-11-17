@@ -13,6 +13,11 @@ class Settings(BaseSettings):
         alias="PRIMARY_URL",
     )
     primary_timeout_s: float = Field(default=5.0, alias="PRIMARY_TIMEOUT_S")
+    # Host of the Explain_Endpoint (GET /explain/{request_id}), Req 17.9.
+    ensemble_api_url: str = Field(
+        default="http://ensemble-api:8000",
+        alias="ENSEMBLE_API_URL",
+    )
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
 

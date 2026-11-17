@@ -46,6 +46,8 @@ services:
       PRIMARY_URL: ${PRIMARY_URL}
       LOG_LEVEL: ${LOG_LEVEL}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      # GET /explain/{request_id} is proxied here.
+      ENSEMBLE_API_URL: ${ENSEMBLE_API_URL:-http://ensemble-api:8000}
     ports:
       - "${ROUTER_PORT}:8000"
     depends_on:
@@ -67,6 +69,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       KNN_INDEX_PATH: /app/data/cache/knn_embed/index.npz
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      # IM2 sentence occlusion. Empty defaults: the explainer's own defaults
+      # (enabled, K = 20) apply.
+      EXPLAIN_OCCLUSION_ENABLED: ${EXPLAIN_OCCLUSION_ENABLED:-}
+      EXPLAIN_OCCLUSION_K: ${EXPLAIN_OCCLUSION_K:-}
     # The nearest-neighbour index (~200 MB, written by
     # `python -m src.ensemble.export_predictions`) is mounted, not baked in.
     # Without it embed-api still serves improved_model_2 and ensemble-api
@@ -100,6 +106,20 @@ services:
       AGENTIC_TIMEOUT_S: ${AGENTIC_TIMEOUT_S:-3.0}
       AGENTIC_ISSUE_GAP: ${AGENTIC_ISSUE_GAP:-0.3}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      EXPLANATIONS_ENABLED: ${EXPLANATIONS_ENABLED:-true}
+      # Narrator settings. Empty compose defaults so the defaults in
+      # src/explain/config.py always apply when a variable is unset.
+      EXPLAIN_BACKEND: ${EXPLAIN_BACKEND:-}
+      EXPLAIN_BASE_URL: ${EXPLAIN_BASE_URL:-}
+      EXPLAIN_API_KEY: ${EXPLAIN_API_KEY:-}
+      EXPLAIN_MODEL: ${EXPLAIN_MODEL:-}
+      EXPLAIN_TIMEOUT_S: ${EXPLAIN_TIMEOUT_S:-}
+      EXPLAIN_AUDIENCES: ${EXPLAIN_AUDIENCES:-}
+      EXPLAIN_INCLUDE_TEXT: ${EXPLAIN_INCLUDE_TEXT:-}
+      EXPLAIN_AGENT_TOKEN: ${EXPLAIN_AGENT_TOKEN:-}
+      EXPLAIN_MAX_TOKENS: ${EXPLAIN_MAX_TOKENS:-}
+      EXPLAIN_MOCK_MODE: ${EXPLAIN_MOCK_MODE:-}
+      EXPLAIN_MOCK_DELAY_S: ${EXPLAIN_MOCK_DELAY_S:-}
     volumes:
       - ../docs/metrics/agentic:/app/docs/metrics/agentic:ro
     healthcheck:

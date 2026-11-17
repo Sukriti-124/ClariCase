@@ -52,6 +52,12 @@ class Decision:
     model_teams: dict[str, str]
     prior_active: bool
     candidates: list[str] | None = None   # top teams, chosen first
+    # Read-only copies for the explainers (Req 7.4, 8.5, 9.4). They never
+    # feed back into the routing outcome.
+    stack_raw_probs: np.ndarray | None = None  # stacker P before label shift
+    gate_features: np.ndarray | None = None    # the gate's input row
+    prior_n_seen: int | None = None            # rolling-prior rows seen
+    prior_min_rows: int | None = None          # rows needed to activate
 
 
 class StackBundle:
@@ -105,10 +111,12 @@ class StackBundle:
             P = self.prior.adjust(P_raw)
             gate_mats = [P[None, :]] + mats
             stack_probs = P
+            stack_raw = np.array(P_raw, dtype=np.float64, copy=True)
         else:
             P = mats[0][0]
             gate_mats = mats
             stack_probs = None
+            stack_raw = None
         j = int(P.argmax())
         team = self.teams[j]
         X = G.prob_features([j], gate_mats, [n_words], len(self.teams))
@@ -126,7 +134,12 @@ class StackBundle:
                         scenario=scenario, threshold=self.threshold_for(team),
                         stack_probs=stack_probs, model_teams=model_teams,
                         prior_active=self.prior.active,
-                        candidates=[self.teams[int(k)] for k in order])
+                        candidates=[self.teams[int(k)] for k in order],
+                        stack_raw_probs=stack_raw,
+                        gate_features=np.array(X[0], dtype=np.float64,
+                                               copy=True),
+                        prior_n_seen=int(self.prior.n_seen),
+                        prior_min_rows=int(self.prior.min_rows))
 
     def fallback(self, primary_probs: dict[str, float]) -> Decision:
         P = self._vec(primary_probs)

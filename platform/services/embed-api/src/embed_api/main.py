@@ -1,12 +1,13 @@
 """embed-api FastAPI application factory."""
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI
 
 from claricase_platform_shared.logging import configure_logging
 from claricase_platform_shared.telemetry import setup_observability
 
-from embed_api.config import get_settings
+from embed_api.config import get_occlusion_settings, get_settings
 from embed_api.model import load_bundle
 from embed_api.routes import router as http_router
 
@@ -18,6 +19,11 @@ async def lifespan(app: FastAPI):
     app.state.settings = settings
     app.state.bundle = load_bundle(settings.model_path, settings.device,
                                    settings.knn_index_path)
+    occlusion = get_occlusion_settings()
+    app.state.occlusion = occlusion
+    for var, reason in occlusion["invalid"]:
+        structlog.get_logger().warning("occlusion_setting_invalid",
+                                       setting=var, reason=reason)
     yield
 
 

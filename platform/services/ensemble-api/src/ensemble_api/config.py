@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     agentic_n_candidates: int = Field(default=3, alias="AGENTIC_N_CANDIDATES")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
+    # Explanations (src.explain). Narrator settings come from EXPLAIN_* env.
+    explanations_enabled: bool = Field(default=True,
+                                       alias="EXPLANATIONS_ENABLED")
+    explain_store_ttl_s: float = Field(default=86400,
+                                       alias="EXPLAIN_STORE_TTL_S")
+    explain_store_max: int = Field(default=10000, alias="EXPLAIN_STORE_MAX")
+
     @property
     def agentic_enabled(self) -> bool:
         return bool(self.agentic_url.strip())

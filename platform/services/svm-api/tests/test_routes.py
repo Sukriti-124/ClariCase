@@ -78,3 +78,29 @@ def test_issues_endpoint(model_path, monkeypatch):
         assert all(r["issue"].startswith("T02_") for r in body["top_issues"])
         assert client.post("/issues", json={"text": "x" * 20, "team": "T99"}
                            ).status_code == 422
+
+
+def test_explain_smoke(model_path, monkeypatch):
+    """Smoke check for POST /explain; full route tests live in test_explain.py."""
+    monkeypatch.setenv("MODEL_PATH", str(model_path))
+    b2 = model_path.parents[1] / "baseline_model_2" / "model.joblib"
+    monkeypatch.setenv("BASELINE2_MODEL_PATH", str(b2))
+    text = "I disputed a charge on my credit card and never got a response from the bank."
+    app = create_app()
+    with TestClient(app) as client:
+        team = client.post("/predict", json={"text": text}).json()["team"]
+        resp = client.post("/explain", json={
+            "text": text, "masked_text": text, "chosen_team": team,
+            "request_id": "rid-explain-1"})
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert set(body["sections"]) == {"improved_model_1", "baseline_model_2"}
+        im1 = body["sections"]["improved_model_1"]
+        assert im1["status"] == "ok", im1.get("reason")
+        assert body["model_versions"]["improved_model_1"].startswith("sha256:")
+        bm2 = body["sections"]["baseline_model_2"]
+        if b2.exists():
+            assert bm2["status"] == "ok", bm2.get("reason")
+            assert body["model_versions"]["baseline_model_2"].startswith("sha256:")
+        else:
+            assert bm2["status"] == "skipped"

@@ -303,3 +303,29 @@ def test_agentic_off_by_default_has_no_agentic_field(client):
     _mock()
     body = client.post("/predict", json={"text": TEXT}).json()
     assert body["agentic"] is None
+
+
+@respx.mock
+def test_predict_reports_pending_and_stores_record_when_upstream_explain_fails(client):
+    import time
+    _mock()
+    respx.post(f"{SVM}/explain").mock(return_value=httpx.Response(500))
+    respx.post(f"{EMB}/explain").mock(side_effect=httpx.ConnectError("down"))
+    body = client.post("/predict", json={"text": TEXT,
+                                         "request_id": "rid-explain-1"}).json()
+    assert body["explanation_status"] == "pending"
+    assert body["team"] == "T01" and body["top_issues"] == ISSUES_T01
+    store = client.app.state.explain_store
+    for _ in range(50):
+        if store.get("rid-explain-1") is not None:
+            break
+        time.sleep(0.1)
+    assert store.get("rid-explain-1") is not None
+
+
+@respx.mock
+def test_predict_explanation_unavailable_when_disabled(client):
+    _mock()
+    client.app.state.explain_store = None
+    body = client.post("/predict", json={"text": TEXT}).json()
+    assert body["explanation_status"] == "unavailable"
