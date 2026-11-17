@@ -389,3 +389,24 @@ def test_knn_serving_index_roundtrip(tmp_path):
     assert z["embeddings"].dtype == np.float16 and z["embeddings"].shape == (50, 8)
     assert list(z["teams"]) == list(PR.TEAMS) and int(z["k"]) == 25
     assert str(z["encoder_name"]) == "enc"
+    assert "complaint_ids" not in z.files
+
+
+def test_knn_serving_index_complaint_ids_row_aligned(tmp_path):
+    from src.ensemble.export_predictions import write_knn_index
+    rng = np.random.default_rng(13)
+    n = 30
+    X = rng.normal(size=(n, 8)).astype(np.float32)
+    team, issue = rng.integers(0, 11, n), rng.integers(0, 71, n)
+    ids = np.array([str(9_000_000 + i * 7) for i in range(n)], dtype=object)
+    path = tmp_path / "index.npz"
+    write_knn_index(X, team, issue, "enc", 256, 25, path=path,
+                    complaint_ids=ids)
+    z = np.load(path, allow_pickle=False)
+    assert z["complaint_ids"].dtype.kind == "U"
+    assert list(z["complaint_ids"]) == list(ids)
+    assert list(z["team_idx"]) == list(team)
+    assert list(z["issue_idx"]) == list(issue)
+    with pytest.raises(ValueError):
+        write_knn_index(X, team, issue, "enc", 256, 25, path=path,
+                        complaint_ids=ids[:-1])

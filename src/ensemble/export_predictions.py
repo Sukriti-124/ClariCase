@@ -182,8 +182,12 @@ def export_knn(splits, embed_model: str = "improved_model_2", device=None,
     TX = TX[keep]
     team_lab = tdf.loc[keep, TEAM_COL].map(tix).to_numpy()
     issue_lab = tdf.loc[keep, ISSUE_COL].map(iix).to_numpy()
+    # Same keep mask and row order as the labels, so row i of the index is
+    # one training complaint.
+    complaint_ids = tdf.loc[keep, ID_COL].astype(str).to_numpy()
     write_knn_index(TX, team_lab, issue_lab, bundle["encoder_name"],
-                    bundle["max_seq_length"], knn_k)
+                    bundle["max_seq_length"], knn_k,
+                    complaint_ids=complaint_ids)
     for split in splits:
         df = load_frame(split)
         print(f"[export] knn_embed / {split}: {len(df):,} rows, k={knn_k}",
@@ -201,14 +205,26 @@ def export_knn(splits, embed_model: str = "improved_model_2", device=None,
 
 def write_knn_index(TX, team_lab, issue_lab, encoder_name: str,
                     max_seq_length: int, k: int,
-                    path=KNN_INDEX_PATH) -> None:
+                    path=KNN_INDEX_PATH, *, complaint_ids=None) -> None:
+    """Write the serving index. `complaint_ids`, when given, must have one
+    entry per row of `TX` in the same order; it is stored as fixed-width
+    unicode so the file still loads with allow_pickle=False. Omitting it
+    writes the old layout."""
+    arrays = dict(embeddings=np.asarray(TX, dtype=np.float16),
+                  team_idx=np.asarray(team_lab, dtype=np.int16),
+                  issue_idx=np.asarray(issue_lab, dtype=np.int16),
+                  teams=np.array(TEAMS), issues=np.array(ISSUES),
+                  encoder_name=np.array(encoder_name),
+                  max_seq_length=np.array(max_seq_length), k=np.array(k))
+    if complaint_ids is not None:
+        ids = np.asarray([str(c) for c in complaint_ids], dtype=str)
+        if ids.shape != (arrays["embeddings"].shape[0],):
+            raise ValueError(
+                f"complaint_ids has shape {ids.shape}; expected "
+                f"({arrays['embeddings'].shape[0]},), one id per index row")
+        arrays["complaint_ids"] = ids
     path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(path, embeddings=np.asarray(TX, dtype=np.float16),
-             team_idx=np.asarray(team_lab, dtype=np.int16),
-             issue_idx=np.asarray(issue_lab, dtype=np.int16),
-             teams=np.array(TEAMS), issues=np.array(ISSUES),
-             encoder_name=np.array(encoder_name),
-             max_seq_length=np.array(max_seq_length), k=np.array(k))
+    np.savez(path, **arrays)
     print(f"[knn] wrote serving index {path} "
           f"({path.stat().st_size / 1e6:.0f} MB)", flush=True)
 

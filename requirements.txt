@@ -7,3 +7,5 @@ pyarrow
 tabulate
 streamlit
 supabase
+pydantic>=2
+httpx

@@ -3,8 +3,12 @@
 Run: streamlit run streamlit_app.py
 """
 
+import logging
+import os
 import time
+import uuid
 from datetime import datetime
+from pathlib import Path
 
 import streamlit as st
 
@@ -83,6 +87,39 @@ def get_store():
 
 
 store = get_store()
+
+log = logging.getLogger(__name__)
+EXPLAIN_CACHE_DB = (Path(__file__).resolve().parent / "data" / "cache"
+                    / "explain" / "llm_cache.sqlite")
+AGENT_DRIVERS_SHOWN = 10
+
+
+def _secrets():
+    try:
+        return st.secrets
+    except Exception:
+        return None
+
+
+@st.cache_resource
+def get_explainer():
+    from src.agentic.llm import PromptCache
+    from src.explain.cache import ExplanationCache
+    from src.explain.config import load_config
+    from src.explain.narrator import Narrator
+    cfg = load_config(os.environ, _secrets())
+    return Narrator(cfg, prompt_cache=PromptCache(EXPLAIN_CACHE_DB),
+                    explanation_cache=ExplanationCache())
+
+
+def agent_view_enabled() -> bool:
+    raw = os.environ.get("CLARICASE_AGENT_VIEW")
+    if not raw:
+        try:
+            raw = st.secrets.get("CLARICASE_AGENT_VIEW")
+        except Exception:
+            raw = None
+    return str(raw or "false").strip().lower() in ("1", "true", "yes", "on")
 
 
 # ---------------------------------------------------------------- helpers
@@ -172,6 +209,98 @@ def process_complaint(text: str) -> dict:
     time.sleep(DONE_PAUSE_SEC)
     placeholder.empty()
     return {"kind": "sent", "record": record, "prediction": prediction}
+
+
+def _explain(record: dict, prediction: dict) -> dict:
+    # Returns {"explanation", "record", "audit"}; explanation is None when
+    # nothing could be produced. Never raises.
+    from src.explain.labels import display_label
+    from src.explain.pipeline import explain_streamlit
+    bundle = get_model()
+    text = record["complaint_text"]          # already masked
+    issues = prediction["issue_top_k"][:3]
+    outcome = {
+        "chosen_team": {"id": prediction["predicted_team_id"],
+                        "name": prediction["predicted_team_name"]},
+        "top_issues": [{"rank": n, "issue_id": i["issue_id"],
+                        "label": i["issue_label"],
+                        "display_label": display_label(i["issue_label"]),
+                        "prob": i["confidence"]}
+                       for n, i in enumerate(issues, 1)],
+        "issue_order": "probability",
+        "auto_route": prediction["route"] == "auto",
+        "route": prediction["route"],
+        "scenario": "primary_only",
+    }
+    try:
+        result = explain_streamlit(
+            request_id=str(uuid.uuid4()), raw_text=text, masked_text=text,
+            vectorizer=bundle["vectorizer"], hsvm=bundle["model"],
+            team_classes=bundle["team_classes"],
+            served_issues=[i["issue_id"] for i in issues],
+            confidence=prediction["confidence"],
+            global_threshold=bundle.get("global_threshold"),
+            outcome=outcome,
+            model_versions={"improved_model_1": prediction["model_name"]},
+            narrator=get_explainer())
+    except Exception:
+        log.exception("explanation failed")
+        return {"explanation": None, "record": None, "audit": []}
+    if result.error or result.narration is None:
+        log.warning("explanation unavailable: %s", result.error)
+        return {"explanation": None, "record": result.record, "audit": []}
+    return {"explanation": result.narration.explanation,
+            "record": result.record, "audit": result.narration.audit}
+
+
+def render_why_panel(record: dict, prediction: dict) -> None:
+    key = record["tracking_id"]
+    cache = st.session_state.setdefault("explanations", {})
+    with st.container(border=True):
+        label("Why this team?")
+        st.caption("This explanation covers the main routing model only "
+                   "(Improved Model 1).")
+        st.markdown(f"**Team:** {prediction['predicted_team_name']}")
+        issues = prediction["issue_top_k"][:ISSUES_SHOWN]
+        st.markdown("**Issues:** " + "; ".join(
+            f"{n}. {issue_name(i['issue_label'])}"
+            for n, i in enumerate(issues, 1)))
+
+        if key not in cache:
+            with st.spinner("Explaining this decision…"):
+                cache[key] = _explain(record, prediction)
+            entry = cache[key]
+            if entry["explanation"] is not None and entry["record"] is not None:
+                try:
+                    store.update(key, {
+                        "decision_record": entry["record"].model_dump(mode="json"),
+                        "explanation": entry["explanation"].model_dump(mode="json"),
+                        "explanation_audit": [a.model_dump(mode="json")
+                                              for a in entry["audit"]]})
+                except Exception:
+                    log.exception("could not store explanation")
+                    entry["not_saved"] = True
+        entry = cache[key]
+        expl = entry["explanation"]
+        if expl is None:
+            st.info("Explanation unavailable.", icon=":material/info:")
+            return
+        st.write(expl.consumer_summary)
+        st.caption("Written by AI" if expl.source == "llm"
+                   else "Standard explanation")
+        if entry.get("not_saved"):
+            st.caption("Explanation not saved.")
+
+        if agent_view_enabled():
+            st.markdown("**Agent summary**")
+            st.write(expl.agent_summary)
+            sec = entry["record"].sections["improved_model_1"]
+            drivers = sec.drivers[:AGENT_DRIVERS_SHOWN]
+            if drivers:
+                st.markdown("**Top team drivers (Improved Model 1)**")
+                for d in drivers:
+                    name = d.text or d.label or d.kind
+                    st.markdown(f"- {name}: {d.contribution:+.3f}")
 
 
 def reset_on_tab_change() -> None:
@@ -284,6 +413,8 @@ with submit_tab:
             st.caption("Save this ID to check on your complaint in the "
                        "**Track my complaint** tab.")
 
+        render_why_panel(record, prediction)
+
 # ---------------------------------------------------------------- track
 with track_tab:
     with st.form("track", border=True):
@@ -324,6 +455,14 @@ with track_tab:
                 st.write(found["complaint_text"])
                 st.caption("Personal details are shown as XXXX for your "
                            "privacy.")
+            stored = found.get("explanation")
+            summary = stored.get("consumer_summary") \
+                if isinstance(stored, dict) else None
+            label("Why this team?")
+            if summary:
+                st.write(summary)
+            else:
+                st.write("No explanation is available for this complaint.")
 
 # ---------------------------------------------------------------- footer
 footer = ("Clear-cut complaints are routed automatically; the rest are "

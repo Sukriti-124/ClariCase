@@ -24,6 +24,8 @@ import numpy as np  # noqa: E402
 import scipy.sparse as sp  # noqa: E402
 
 from src.ensemble.probs import TEAMS, reorder  # noqa: E402
+from src.explain.adapters import record_from_trace  # noqa: E402
+from src.explain.template import summary_facts  # noqa: E402
 from src.utils.config import ROOT, TEAM_MAPPING  # noqa: E402
 from src.utils.text import clean_text  # noqa: E402
 
@@ -511,17 +513,19 @@ def summarize(results: dict, names: dict) -> dict:
     issues = st.get("issues") or {}
     ens_ok = ens.get("status") == "ok"
 
-    if ens_ok:
-        team = str(ens["team"])
-        auto = bool(ens.get("auto_route"))
-        scenario = ens.get("scenario")
-        confidence = ens.get("score")
-    else:
-        team = im1["team"]
-        auto = im1["route"] == "auto"
-        scenario = "primary-only"
-        confidence = im1["confidence"]
-    route = "auto" if auto else "review"
+    # Team, issues, route and scenario come from the summary logic shared
+    # with the Template_Explainer (Req 14.3).
+    facts = summary_facts(record_from_trace(results, names))
+    team = facts.team
+    auto = facts.auto_route
+    route = facts.route
+    scenario = facts.scenario
+    confidence = ens.get("score") if ens_ok else im1["confidence"]
+    trace_issues = issues.get("issues") or []
+    by_id = {str(i["issue_id"]): i for i in trace_issues}
+    top_issues = [by_id[i["issue_id"]] for i in facts.issues]
+    # Outcome holds at most three issues; any extra (--top-k > 3) follow.
+    top_issues += trace_issues[len(top_issues):]
 
     why = [f"Improved Model 1 picked {im1['team']} "
            f"({im1.get('team_name') or 'unnamed'}) with calibrated "
@@ -566,7 +570,7 @@ def summarize(results: dict, names: dict) -> dict:
 
     return {"status": "ok", "reason": None, "team": team,
             "team_name": names.get(team, ""), "confidence": confidence,
-            "issues": issues.get("issues", []), "route": route,
+            "issues": top_issues, "route": route,
             "auto_route": auto, "scenario": scenario, "why": text}
 
 

@@ -102,7 +102,8 @@ def align(frames: dict[str, pd.DataFrame], teams=TEAMS,
 def _gated(val, evals, yv, val_chosen, val_mats, eval_chosen, eval_mats,
            n_teams, splits, kind, seed):
     """Out-of-fold gate scores on validation, a gate refitted on all of it,
-    and that gate's scores on each eval split."""
+    that gate's scores on each eval split, and the per-feature medians of
+    its training matrix (the reference values for gate ablation)."""
     Xv = G.prob_features(val_chosen, val_mats, val.n_words, n_teams)
     correct = (val_chosen == yv).astype(int)
     oof = np.zeros(len(yv))
@@ -114,7 +115,7 @@ def _gated(val, evals, yv, val_chosen, val_mats, eval_chosen, eval_mats,
         s: est.predict_proba(G.prob_features(
             eval_chosen[s], eval_mats[s], evals[s].n_words, n_teams))[:, 1]
         for s in evals}
-    return oof, est, eval_score, eval_mats
+    return oof, est, eval_score, eval_mats, np.median(Xv, axis=0)
 
 
 def build_scenarios(val: Aligned, evals: dict[str, Aligned],
@@ -144,11 +145,11 @@ def build_scenarios(val: Aligned, evals: dict[str, Aligned],
         "gate": None, "val_probs": Pv[0],
         "eval_probs": {s: P[0] for s, P in Pe.items()},
     }
-    oof, est, es, mats = _gated(val, evals, yv, p_chosen_v, Pv, p_chosen_e,
-                                Pe, T, splits, kind, seed)
+    oof, est, es, mats, ref = _gated(val, evals, yv, p_chosen_v, Pv,
+                                     p_chosen_e, Pe, T, splits, kind, seed)
     sc["gate_on_primary"] = {**sc["primary_alone"], "val_score": oof,
                              "eval_score": es, "gate": est,
-                             "gate_eval_mats": mats}
+                             "gate_eval_mats": mats, "gate_reference": ref}
 
     s_chosen_v = oof_stack.argmax(1)
     s_chosen_e = {s: P.argmax(1) for s, P in stack_e.items()}
@@ -158,13 +159,13 @@ def build_scenarios(val: Aligned, evals: dict[str, Aligned],
         "eval_score": {s: P.max(1) for s, P in stack_e.items()},
         "gate": None, "val_probs": oof_stack, "eval_probs": stack_e,
     }
-    oof, est, es, mats = _gated(val, evals, yv, s_chosen_v, [oof_stack] + Pv,
-                                s_chosen_e,
-                                {s: [stack_e[s]] + Pe[s] for s in Pe},
-                                T, splits, kind, seed)
+    oof, est, es, mats, ref = _gated(val, evals, yv, s_chosen_v,
+                                     [oof_stack] + Pv, s_chosen_e,
+                                     {s: [stack_e[s]] + Pe[s] for s in Pe},
+                                     T, splits, kind, seed)
     sc["stack_gate"] = {**sc["stack_alone"], "val_score": oof,
                         "eval_score": es, "gate": est,
-                        "gate_eval_mats": mats}
+                        "gate_eval_mats": mats, "gate_reference": ref}
 
     info = {"stacker": stacker, "stacker_C": C, "stacker_tuning": tuning}
     return sc, info
@@ -355,6 +356,9 @@ def main() -> None:
         "gate_feature_names": G.prob_feature_names(
             (["stack"] if final.startswith("stack") else []) + list(args.models),
             TEAMS),
+        # Per-feature medians of the gate's training matrix, aligned with
+        # gate_feature_names; the baseline for gate ablation explanations.
+        "gate_reference_values": [float(v) for v in s["gate_reference"]],
         # Label-shift correction: the team mix the stacker was calibrated to.
         "source_prior": prior_from_labels(val.y, TEAMS).tolist(),
         # Serving fallback when a model is missing: the primary alone under

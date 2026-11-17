@@ -111,8 +111,13 @@ def fit_gate(X: np.ndarray, y_correct: np.ndarray, kind: str = "logreg",
 
 def make_bundle(estimator, kind: str, team_classes: Sequence[str],
                 primary_name: str, secondary_names: Sequence[str],
-                threshold: float | None) -> dict:
-    return {
+                threshold: float | None,
+                reference_values: Sequence[float] | None = None) -> dict:
+    """Gate bundle. `reference_values` (per-feature medians of the training
+    matrix, aligned with `feature_names`) is stored under
+    `gate_reference_values` when given; otherwise the key is absent."""
+    names = feature_names(team_classes, secondary_names)
+    bundle = {
         "model_name": MODEL_NAME,
         "kind": kind,
         "estimator": estimator,
@@ -120,8 +125,16 @@ def make_bundle(estimator, kind: str, team_classes: Sequence[str],
         "primary_name": primary_name,
         "secondary_names": list(secondary_names),
         "threshold": threshold,
-        "feature_names": feature_names(team_classes, secondary_names),
+        "feature_names": names,
     }
+    if reference_values is not None:
+        ref = [float(v) for v in np.asarray(reference_values,
+                                            dtype=np.float64).ravel()]
+        if len(ref) != len(names):
+            raise ValueError(f"reference_values has {len(ref)} entries, "
+                             f"want {len(names)} (one per feature)")
+        bundle["gate_reference_values"] = ref
+    return bundle
 
 
 def score(bundle: dict, X: np.ndarray) -> np.ndarray:
