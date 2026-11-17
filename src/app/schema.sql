@@ -18,6 +18,10 @@ alter table public.complaints add column if not exists issue_id    text;
 alter table public.complaints add column if not exists issue_label text;
 alter table public.complaints add column if not exists route       text;
 
+alter table public.complaints add column if not exists decision_record   jsonb;
+alter table public.complaints add column if not exists explanation       jsonb;
+alter table public.complaints add column if not exists explanation_audit jsonb;
+
 
 alter table public.complaints enable row level security;
 

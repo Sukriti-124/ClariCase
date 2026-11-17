@@ -1,0 +1,58 @@
+{
+  "metric": "autonomous routing rate at >=90% precision",
+  "protocol": "temporal split, real team mix in validation and test; isotonic calibration and thresholds fit on validation, frozen for test",
+  "value": 0.7664,
+  "operating_points": {
+    "at_95p": {
+      "threshold": 0.818,
+      "coverage": 0.4412,
+      "precision": 0.9477,
+      "n_routed": 48458,
+      "validation_coverage": 0.4685,
+      "target_met_on_test": false,
+      "coverage_95ci": [
+        0.4383,
+        0.444
+      ],
+      "precision_95ci": [
+        0.9456,
+        0.9497
+      ]
+    },
+    "at_90p": {
+      "threshold": 0.602,
+      "coverage": 0.7664,
+      "precision": 0.8945,
+      "n_routed": 84173,
+      "validation_coverage": 0.7912,
+      "target_met_on_test": false,
+      "coverage_95ci": [
+        0.7638,
+        0.7688
+      ],
+      "precision_95ci": [
+        0.8924,
+        0.8967
+      ]
+    },
+    "at_85p": {
+      "threshold": 0.464,
+      "coverage": 0.9428,
+      "precision": 0.8396,
+      "n_routed": 103553,
+      "validation_coverage": 0.9523,
+      "target_met_on_test": false
+    }
+  },
+  "ece_test": 0.07,
+  "guardrail": {
+    "team_precision_floor": 0.85,
+    "teams_below_floor": [
+      "T04",
+      "T05",
+      "T09"
+    ]
+  },
+  "n_validation": 153502,
+  "n_test": 109834
+}

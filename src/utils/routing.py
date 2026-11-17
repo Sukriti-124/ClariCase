@@ -10,7 +10,8 @@ import numpy as np
 import pandas as pd
 
 from src.utils.config import (
-    MIN_ROUTED, N_BOOTSTRAP, PRECISION_TARGETS, RANDOM_SEED,
+    MIN_ROUTED, N_BOOTSTRAP, NORTH_STAR_KEY, NORTH_STAR_TARGET,
+    PRECISION_TARGETS, RANDOM_SEED,
     TEAM_PRECISION_FLOOR,
 )
 
@@ -132,8 +133,7 @@ def north_star_summary(val_conf, val_correct, test_conf, test_correct,
                                        and point["precision"] >= target)
         operating_points[key] = point
 
-    head = f"at_{int(PRECISION_TARGETS[0] * 100)}p"
-    main = operating_points[head]
+    main = operating_points[NORTH_STAR_KEY]
     teams = None
     if main is not None:
         main.update(bootstrap_ci(test_conf, test_correct, main["threshold"]))
@@ -141,7 +141,7 @@ def north_star_summary(val_conf, val_correct, test_conf, test_correct,
                                  main["threshold"], names)
 
     summary = {
-        "metric": (f"autonomous routing rate at >={PRECISION_TARGETS[0]:.0%} "
+        "metric": (f"autonomous routing rate at >={NORTH_STAR_TARGET:.0%} "
                    "precision"),
         "protocol": ("temporal split, real team mix in validation and test; "
                      "isotonic calibration and thresholds fit on validation, "

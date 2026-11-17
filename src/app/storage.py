@@ -1,11 +1,12 @@
 """Complaint storage for the intake app.
 
 Supabase when deployed; a local SQLite file for development when no
-Supabase secrets are configured. Both expose add() and get().
+Supabase secrets are configured. Both expose add(), get() and update().
 """
 
 from __future__ import annotations
 
+import json
 import secrets
 import sqlite3
 from datetime import datetime, timezone
@@ -22,7 +23,12 @@ COLUMNS = ["tracking_id", "submitted_at", "complaint_text", "team_id",
            "team_name", "confidence", "status", "issue_id", "issue_label",
            "route"]
 # Added after the first release; nullable so older rows stay valid.
-ADDED_COLUMNS = {"issue_id": "TEXT", "issue_label": "TEXT", "route": "TEXT"}
+ADDED_COLUMNS = {"issue_id": "TEXT", "issue_label": "TEXT", "route": "TEXT",
+                 "decision_record": "TEXT", "explanation": "TEXT",
+                 "explanation_audit": "TEXT"}
+# Columns update() may write. JSON text in SQLite, jsonb in Supabase.
+JSON_COLUMNS = ("decision_record", "explanation", "explanation_audit")
+UPDATABLE_COLUMNS = frozenset(JSON_COLUMNS)
 STATUS_BY_ROUTE = {"auto": "Routed", "review": "Under review"}
 
 
@@ -70,6 +76,17 @@ class SupabaseStore:
                 .eq("tracking_id", tracking_id).limit(1).execute().data)
         return rows[0] if rows else None
 
+    def update(self, tracking_id: str, fields: dict) -> None:
+        _check_fields(fields)
+        (self.client.table(TABLE).update(fields)
+         .eq("tracking_id", tracking_id).execute())
+
+
+def _check_fields(fields: dict) -> None:
+    unknown = set(fields) - UPDATABLE_COLUMNS
+    if unknown:
+        raise ValueError(f"cannot update columns: {sorted(unknown)}")
+
 
 class LocalStore:
     persistent = False
@@ -108,4 +125,24 @@ class LocalStore:
         with self._connect() as con:
             row = con.execute(f"SELECT * FROM {TABLE} WHERE tracking_id = ?",
                               (tracking_id,)).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        record = dict(row)
+        # Decode JSON text so both stores return the same shapes.
+        for name in JSON_COLUMNS:
+            if record.get(name) is not None:
+                record[name] = json.loads(record[name])
+        return record
+
+    def update(self, tracking_id: str, fields: dict) -> None:
+        _check_fields(fields)
+        if not fields:
+            return
+        # Column names come from the allow-list, never from the caller.
+        names = [c for c in JSON_COLUMNS if c in fields]
+        values = [None if fields[c] is None else json.dumps(fields[c])
+                  for c in names]
+        with self._connect() as con:
+            con.execute(f"UPDATE {TABLE} SET "
+                        f"{', '.join(f'{c} = ?' for c in names)} "
+                        f"WHERE tracking_id = ?", [*values, tracking_id])

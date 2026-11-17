@@ -1,0 +1,395 @@
+{
+  "issues": {
+    "T01_I001": {
+      "display_label": "Identity theft protection or other monitoring services",
+      "label": "Credit reporting or other personal consumer reports :: Identity theft protection or other monitoring services",
+      "team_id": "T01"
+    },
+    "T01_I004": {
+      "display_label": "Improper use of your report",
+      "label": "Credit reporting or other personal consumer reports :: Improper use of your report",
+      "team_id": "T01"
+    },
+    "T01_I005": {
+      "display_label": "Incorrect information on your report",
+      "label": "Credit reporting or other personal consumer reports :: Incorrect information on your report",
+      "team_id": "T01"
+    },
+    "T01_I008": {
+      "display_label": "Problem with a company's investigation into an existing problem",
+      "label": "Credit reporting or other personal consumer reports :: Problem with a company's investigation into an existing problem",
+      "team_id": "T01"
+    },
+    "T01_I010": {
+      "display_label": "Problem with fraud alerts or security freezes",
+      "label": "Credit reporting or other personal consumer reports :: Problem with fraud alerts or security freezes",
+      "team_id": "T01"
+    },
+    "T01_I012": {
+      "display_label": "Unable to get your credit report or credit score",
+      "label": "Credit reporting or other personal consumer reports :: Unable to get your credit report or credit score",
+      "team_id": "T01"
+    },
+    "T02_I001": {
+      "display_label": "Attempts to collect debt not owed",
+      "label": "Debt collection :: Attempts to collect debt not owed",
+      "team_id": "T02"
+    },
+    "T02_I002": {
+      "display_label": "Communication tactics",
+      "label": "Debt collection :: Communication tactics",
+      "team_id": "T02"
+    },
+    "T02_I003": {
+      "display_label": "Electronic communications",
+      "label": "Debt collection :: Electronic communications",
+      "team_id": "T02"
+    },
+    "T02_I004": {
+      "display_label": "False statements or representation",
+      "label": "Debt collection :: False statements or representation",
+      "team_id": "T02"
+    },
+    "T02_I005": {
+      "display_label": "Threatened to contact someone or share information improperly",
+      "label": "Debt collection :: Threatened to contact someone or share information improperly",
+      "team_id": "T02"
+    },
+    "T02_I006": {
+      "display_label": "Took or threatened to take negative or legal action",
+      "label": "Debt collection :: Took or threatened to take negative or legal action",
+      "team_id": "T02"
+    },
+    "T02_I007": {
+      "display_label": "Written notification about debt",
+      "label": "Debt collection :: Written notification about debt",
+      "team_id": "T02"
+    },
+    "T03_I001": {
+      "display_label": "Advertising and marketing, including promotional offers",
+      "label": "Credit card :: Advertising and marketing, including promotional offers",
+      "team_id": "T03"
+    },
+    "T03_I002": {
+      "display_label": "Closing your account",
+      "label": "Credit card :: Closing your account",
+      "team_id": "T03"
+    },
+    "T03_I004": {
+      "display_label": "Fees or interest",
+      "label": "Credit card :: Fees or interest",
+      "team_id": "T03"
+    },
+    "T03_I005": {
+      "display_label": "Getting a credit card",
+      "label": "Credit card :: Getting a credit card",
+      "team_id": "T03"
+    },
+    "T03_I006": {
+      "display_label": "Improper use of your report",
+      "label": "Credit card :: Improper use of your report",
+      "team_id": "T03"
+    },
+    "T03_I007": {
+      "display_label": "Incorrect information on your report",
+      "label": "Credit card :: Incorrect information on your report",
+      "team_id": "T03"
+    },
+    "T03_I008": {
+      "display_label": "Other features, terms, or problems",
+      "label": "Credit card :: Other features, terms, or problems",
+      "team_id": "T03"
+    },
+    "T03_I009": {
+      "display_label": "Problem when making payments",
+      "label": "Credit card :: Problem when making payments",
+      "team_id": "T03"
+    },
+    "T03_I010": {
+      "display_label": "Problem with a company's investigation into an existing problem",
+      "label": "Credit card :: Problem with a company's investigation into an existing problem",
+      "team_id": "T03"
+    },
+    "T03_I011": {
+      "display_label": "Problem with a purchase shown on your statement",
+      "label": "Credit card :: Problem with a purchase shown on your statement",
+      "team_id": "T03"
+    },
+    "T03_I013": {
+      "display_label": "Struggling to pay your bill",
+      "label": "Credit card :: Struggling to pay your bill",
+      "team_id": "T03"
+    },
+    "T03_I014": {
+      "display_label": "Trouble using your card",
+      "label": "Credit card :: Trouble using your card",
+      "team_id": "T03"
+    },
+    "T04_I001": {
+      "display_label": "Closing an account",
+      "label": "Checking or savings account :: Closing an account",
+      "team_id": "T04"
+    },
+    "T04_I005": {
+      "display_label": "Managing an account",
+      "label": "Checking or savings account :: Managing an account",
+      "team_id": "T04"
+    },
+    "T04_I006": {
+      "display_label": "Opening an account",
+      "label": "Checking or savings account :: Opening an account",
+      "team_id": "T04"
+    },
+    "T04_I007": {
+      "display_label": "Problem caused by your funds being low",
+      "label": "Checking or savings account :: Problem caused by your funds being low",
+      "team_id": "T04"
+    },
+    "T04_I009": {
+      "display_label": "Problem with a lender or other company charging your account",
+      "label": "Checking or savings account :: Problem with a lender or other company charging your account",
+      "team_id": "T04"
+    },
+    "T05_I002": {
+      "display_label": "Confusing or missing disclosures",
+      "label": "Money transfer, virtual currency, or money service :: Confusing or missing disclosures",
+      "team_id": "T05"
+    },
+    "T05_I003": {
+      "display_label": "Fraud or scam",
+      "label": "Money transfer, virtual currency, or money service :: Fraud or scam",
+      "team_id": "T05"
+    },
+    "T05_I006": {
+      "display_label": "Managing, opening, or closing your mobile wallet account",
+      "label": "Money transfer, virtual currency, or money service :: Managing, opening, or closing your mobile wallet account",
+      "team_id": "T05"
+    },
+    "T05_I007": {
+      "display_label": "Money was not available when promised",
+      "label": "Money transfer, virtual currency, or money service :: Money was not available when promised",
+      "team_id": "T05"
+    },
+    "T05_I008": {
+      "display_label": "Other service problem",
+      "label": "Money transfer, virtual currency, or money service :: Other service problem",
+      "team_id": "T05"
+    },
+    "T05_I009": {
+      "display_label": "Other transaction problem",
+      "label": "Money transfer, virtual currency, or money service :: Other transaction problem",
+      "team_id": "T05"
+    },
+    "T05_I012": {
+      "display_label": "Problem with customer service",
+      "label": "Money transfer, virtual currency, or money service :: Problem with customer service",
+      "team_id": "T05"
+    },
+    "T05_I013": {
+      "display_label": "Trouble accessing funds in your mobile or digital wallet",
+      "label": "Money transfer, virtual currency, or money service :: Trouble accessing funds in your mobile or digital wallet",
+      "team_id": "T05"
+    },
+    "T05_I014": {
+      "display_label": "Unauthorized transactions or other transaction problem",
+      "label": "Money transfer, virtual currency, or money service :: Unauthorized transactions or other transaction problem",
+      "team_id": "T05"
+    },
+    "T05_I015": {
+      "display_label": "Unexpected or other fees",
+      "label": "Money transfer, virtual currency, or money service :: Unexpected or other fees",
+      "team_id": "T05"
+    },
+    "T06_I001": {
+      "display_label": "Applying for a mortgage or refinancing an existing mortgage",
+      "label": "Mortgage :: Applying for a mortgage or refinancing an existing mortgage",
+      "team_id": "T06"
+    },
+    "T06_I002": {
+      "display_label": "Closing on a mortgage",
+      "label": "Mortgage :: Closing on a mortgage",
+      "team_id": "T06"
+    },
+    "T06_I005": {
+      "display_label": "Incorrect information on your report",
+      "label": "Mortgage :: Incorrect information on your report",
+      "team_id": "T06"
+    },
+    "T06_I008": {
+      "display_label": "Struggling to pay mortgage",
+      "label": "Mortgage :: Struggling to pay mortgage",
+      "team_id": "T06"
+    },
+    "T06_I009": {
+      "display_label": "Trouble during payment process",
+      "label": "Mortgage :: Trouble during payment process",
+      "team_id": "T06"
+    },
+    "T07_I002": {
+      "display_label": "Dealing with your lender or servicer",
+      "label": "Student loan :: Dealing with your lender or servicer",
+      "team_id": "T07"
+    },
+    "T07_I004": {
+      "display_label": "Improper use of your report",
+      "label": "Student loan :: Improper use of your report",
+      "team_id": "T07"
+    },
+    "T07_I005": {
+      "display_label": "Incorrect information on your report",
+      "label": "Student loan :: Incorrect information on your report",
+      "team_id": "T07"
+    },
+    "T07_I010": {
+      "display_label": "Struggling to repay your loan",
+      "label": "Student loan :: Struggling to repay your loan",
+      "team_id": "T07"
+    },
+    "T08_I002": {
+      "display_label": "Getting a loan or lease",
+      "label": "Vehicle loan or lease :: Getting a loan or lease",
+      "team_id": "T08"
+    },
+    "T08_I004": {
+      "display_label": "Incorrect information on your report",
+      "label": "Vehicle loan or lease :: Incorrect information on your report",
+      "team_id": "T08"
+    },
+    "T08_I005": {
+      "display_label": "Managing the loan or lease",
+      "label": "Vehicle loan or lease :: Managing the loan or lease",
+      "team_id": "T08"
+    },
+    "T08_I008": {
+      "display_label": "Problems at the end of the loan or lease",
+      "label": "Vehicle loan or lease :: Problems at the end of the loan or lease",
+      "team_id": "T08"
+    },
+    "T08_I009": {
+      "display_label": "Repossession",
+      "label": "Vehicle loan or lease :: Repossession",
+      "team_id": "T08"
+    },
+    "T08_I010": {
+      "display_label": "Struggling to pay your loan",
+      "label": "Vehicle loan or lease :: Struggling to pay your loan",
+      "team_id": "T08"
+    },
+    "T09_I003": {
+      "display_label": "Charged fees or interest you didn't expect",
+      "label": "Payday loan, title loan, personal loan, or advance loan :: Charged fees or interest you didn't expect",
+      "team_id": "T09"
+    },
+    "T09_I009": {
+      "display_label": "Getting the loan",
+      "label": "Payday loan, title loan, personal loan, or advance loan :: Getting the loan",
+      "team_id": "T09"
+    },
+    "T09_I011": {
+      "display_label": "Incorrect information on your report",
+      "label": "Payday loan, title loan, personal loan, or advance loan :: Incorrect information on your report",
+      "team_id": "T09"
+    },
+    "T09_I016": {
+      "display_label": "Problem when making payments",
+      "label": "Payday loan, title loan, personal loan, or advance loan :: Problem when making payments",
+      "team_id": "T09"
+    },
+    "T09_I018": {
+      "display_label": "Problem with additional add-on products or services",
+      "label": "Payday loan, title loan, personal loan, or advance loan :: Problem with additional add-on products or services",
+      "team_id": "T09"
+    },
+    "T09_I021": {
+      "display_label": "Problem with the payoff process at the end of the loan",
+      "label": "Payday loan, title loan, personal loan, or advance loan :: Problem with the payoff process at the end of the loan",
+      "team_id": "T09"
+    },
+    "T09_I026": {
+      "display_label": "Struggling to pay your loan",
+      "label": "Payday loan, title loan, personal loan, or advance loan :: Struggling to pay your loan",
+      "team_id": "T09"
+    },
+    "T10_I002": {
+      "display_label": "Problem getting a card or closing an account",
+      "label": "Prepaid card :: Problem getting a card or closing an account",
+      "team_id": "T10"
+    },
+    "T10_I003": {
+      "display_label": "Problem with a purchase or transfer",
+      "label": "Prepaid card :: Problem with a purchase or transfer",
+      "team_id": "T10"
+    },
+    "T10_I005": {
+      "display_label": "Trouble using the card",
+      "label": "Prepaid card :: Trouble using the card",
+      "team_id": "T10"
+    },
+    "T10_I006": {
+      "display_label": "Unexpected or other fees",
+      "label": "Prepaid card :: Unexpected or other fees",
+      "team_id": "T10"
+    },
+    "T11_I001": {
+      "display_label": "Charged upfront or unexpected fees",
+      "label": "Debt or credit management :: Charged upfront or unexpected fees",
+      "team_id": "T11"
+    },
+    "T11_I002": {
+      "display_label": "Confusing or misleading advertising or marketing",
+      "label": "Debt or credit management :: Confusing or misleading advertising or marketing",
+      "team_id": "T11"
+    },
+    "T11_I003": {
+      "display_label": "Confusing or missing disclosures",
+      "label": "Debt or credit management :: Confusing or missing disclosures",
+      "team_id": "T11"
+    },
+    "T11_I004": {
+      "display_label": "Didn't provide services promised",
+      "label": "Debt or credit management :: Didn't provide services promised",
+      "team_id": "T11"
+    },
+    "T11_I005": {
+      "display_label": "Problem with customer service",
+      "label": "Debt or credit management :: Problem with customer service",
+      "team_id": "T11"
+    }
+  },
+  "teams": {
+    "T01": {
+      "name": "Credit Reporting Team"
+    },
+    "T02": {
+      "name": "Debt Collection Team"
+    },
+    "T03": {
+      "name": "Credit Card Team"
+    },
+    "T04": {
+      "name": "Banking Accounts Team"
+    },
+    "T05": {
+      "name": "Money Transfers & Digital Currency Team"
+    },
+    "T06": {
+      "name": "Mortgage Team"
+    },
+    "T07": {
+      "name": "Student Loan Team"
+    },
+    "T08": {
+      "name": "Vehicle Finance Team"
+    },
+    "T09": {
+      "name": "Personal & Short-Term Loans Team"
+    },
+    "T10": {
+      "name": "Prepaid Card Team"
+    },
+    "T11": {
+      "name": "Debt & Credit Management Team"
+    }
+  },
+  "version": 1
+}

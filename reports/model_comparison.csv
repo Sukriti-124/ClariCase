@@ -1,8 +1,16 @@
-timestamp,model,train_set,eval_set,team_acc,team_macro_f1,issue_macro_f1,issue_top3,joint_exact,north_star_coverage_95,precision_at_95_threshold,per_team_thr_coverage_95,teams_below_floor,ece,n_eval,git_commit
-2026-10-01T16:36:58+00:00,baseline_model_2,3k_team,test,0.7999435511772311,0.6474711957925506,,,,0.4646,0.9444,,T09,0.0259,109834,264addd
-2026-10-01T21:56:15+00:00,improved_model_1,train_cap_issue,test,0.8435639237394613,0.7259838545614182,0.3667269927745383,,0.5613653331391009,0.615,0.9478,0.5494,,0.026,109834,4e81dca
-2026-10-01T22:15:13+00:00,flat_issue_ablation,train_cap_issue,test,,0.6311630279136521,0.3121552541081008,,,,,,,,109834,4e81dca
-2026-10-01T22:20:57+00:00,nb_reference_cap_issue,train_cap_issue,test,,0.6684197755810781,,,,,,,,,109834,4e81dca
-2026-10-01T22:20:59+00:00,dummy_most_frequent,train_cap_issue,test,,0.023264643256703597,,,,,,,,,109834,4e81dca
-2026-10-01T22:21:21+00:00,baseline_model_2,3k_team,holdout_2026,,0.6062187296894895,,,,,,,,,29798,4e81dca
-2026-10-01T22:29:01+00:00,improved_model_1,train_cap_issue,holdout_2026,0.7672662594805021,0.6973885372341622,0.3539247808556832,,0.510336264178804,,,,,,29798,4e81dca
+timestamp,model,train_set,eval_set,team_acc,team_macro_f1,issue_macro_f1,issue_top3,joint_exact,north_star_coverage_95,precision_at_95_threshold,per_team_thr_coverage_95,teams_below_floor,ece,n_eval,git_commit,north_star_coverage_90,precision_at_90_threshold
+2026-10-01T16:36:58+00:00,baseline_model_2,3k_team,test,0.7999435511772311,0.6474711957925506,,,,0.4646,0.9444,,T09,0.0259,109834,264addd,0.7217,0.8968
+2026-10-01T21:56:15+00:00,improved_model_1,train_cap_issue,test,0.8435639237394613,0.7259838545614182,0.3667269927745383,,0.5613653331391009,0.615,0.9478,0.5494,,0.026,109834,4e81dca,0.8532,0.8976
+2026-10-01T22:15:13+00:00,flat_issue_ablation,train_cap_issue,test,,0.6311630279136521,0.3121552541081008,,,,,,,,109834,4e81dca,,
+2026-10-01T22:20:57+00:00,nb_reference_cap_issue,train_cap_issue,test,,0.6684197755810781,,,,,,,,,109834,4e81dca,,
+2026-10-01T22:20:59+00:00,dummy_most_frequent,train_cap_issue,test,,0.023264643256703597,,,,,,,,,109834,4e81dca,,
+2026-10-01T22:21:21+00:00,baseline_model_2,3k_team,holdout_2026,,0.6062187296894895,,,,,,,,,29798,4e81dca,,
+2026-10-01T22:29:01+00:00,improved_model_1,train_cap_issue,holdout_2026,0.7672662594805021,0.6973885372341622,0.3539247808556832,,0.510336264178804,,,,,,29798,4e81dca,,
+2026-11-15T08:16:28+00:00,improved_model_2,train_cap_issue,test,0.814192326601963,0.6647516150739406,,,,0.4412,0.9477,,,0.07,109834,e191159,0.7664,0.8945
+2026-11-15T08:43:19+00:00,ensemble_gate_v1,gate(improved_model_1+improved_model_2),test,0.8435639237394613,,,,,0.6642,0.9449,,,0.0055,109834,e191159,0.8742,0.8952
+2026-11-16T02:01:25+00:00,ensemble_stack_v2,stack_gate(improved_model_1+improved_model_2+baseline_model_2+knn_embed),test,0.8547899557514067,0.7394814893598379,,,,0.7078,0.9463,,T04,,109834,e191159,0.8694,0.9032
+2026-11-16T02:01:26+00:00,ensemble_stack_v2,stack_gate(improved_model_1+improved_model_2+baseline_model_2+knn_embed),holdout_2026,0.7708235452043761,0.7006838724264798,,,,0.5505,0.899,,"T01,T10",,29798,e191159,0.7813,0.8293
+2026-11-16T02:03:17+00:00,ensemble_issue_v1,"pooled(improved_model_1+embed_issue_head+knn_embed), team=ensemble_stack",test,0.8547899557514067,,0.3838,0.8227,0.5599,,,,,,109834,e191159,,
+2026-11-16T02:03:18+00:00,ensemble_issue_v1,"pooled(improved_model_1+embed_issue_head+knn_embed), team=ensemble_stack",holdout_2026,0.7708235452043761,,0.3647,0.7157,0.5102,,,,,,29798,e191159,,
+2026-11-16T04:41:41+00:00,ensemble_stack_v2,stack_gate(improved_model_1+improved_model_2+baseline_model_2+knn_embed),test,0.8547899557514067,0.7394814893598379,,,,0.6999,0.9478,,T04,,109834,,0.8661,0.9039
+2026-11-16T04:41:42+00:00,ensemble_stack_v2,stack_gate(improved_model_1+improved_model_2+baseline_model_2+knn_embed),holdout_2026,0.7708235452043761,0.7006838724264798,,,,0.5409,0.9007,,"T01,T09",,29798,,0.7765,0.828

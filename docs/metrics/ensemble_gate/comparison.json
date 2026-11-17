@@ -1,0 +1,61 @@
+{
+  "primary": "improved_model_1",
+  "secondary": [
+    "improved_model_2"
+  ],
+  "chosen_kind": "hgb",
+  "by_kind": {
+    "logreg": {
+      "at_95p": {
+        "gate": {
+          "threshold": 0.874,
+          "coverage": 0.6373,
+          "precision": 0.9472
+        },
+        "primary_alone": {
+          "threshold": 0.818,
+          "coverage": 0.615,
+          "precision": 0.9478
+        }
+      },
+      "at_90p": {
+        "gate": {
+          "threshold": 0.612,
+          "coverage": 0.8661,
+          "precision": 0.8966
+        },
+        "primary_alone": {
+          "threshold": 0.604,
+          "coverage": 0.8532,
+          "precision": 0.8976
+        }
+      }
+    },
+    "hgb": {
+      "at_95p": {
+        "gate": {
+          "threshold": 0.826,
+          "coverage": 0.6642,
+          "precision": 0.9449
+        },
+        "primary_alone": {
+          "threshold": 0.818,
+          "coverage": 0.615,
+          "precision": 0.9478
+        }
+      },
+      "at_90p": {
+        "gate": {
+          "threshold": 0.616,
+          "coverage": 0.8742,
+          "precision": 0.8952
+        },
+        "primary_alone": {
+          "threshold": 0.604,
+          "coverage": 0.8532,
+          "precision": 0.8976
+        }
+      }
+    }
+  }
+}

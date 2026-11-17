@@ -1,0 +1,6 @@
+{
+  "encoder": "BAAI/bge-small-en-v1.5",
+  "max_seq_length": 256,
+  "train_split": "train_cap_issue",
+  "wall_clock_sec": 1786.9
+}
