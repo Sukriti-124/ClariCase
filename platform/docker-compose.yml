@@ -44,6 +44,8 @@ services:
     image: claricase/router:dev
     environment:
       PRIMARY_URL: ${PRIMARY_URL}
+      # Optional: tried once when PRIMARY_URL is down. Empty disables it.
+      FALLBACK_URL: ${FALLBACK_URL:-}
       LOG_LEVEL: ${LOG_LEVEL}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       # GET /explain/{request_id} is proxied here.
