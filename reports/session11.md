@@ -27,13 +27,13 @@ north_star:
 - **Ensemble routing** (`src/ensemble/`): a stacker combines Improved Model 1, Improved Model 2, Baseline 2 and a nearest-neighbour model on embeddings; a gate estimates the probability that the chosen team is right; per-team thresholds with an 85% precision floor decide auto-routing. A label-shift correction re-estimates the incoming team mix from unlabelled traffic and reweights the stacker's probabilities.
 - **Model explainability** (`src/explain/`): every prediction gets a decision record of why it was routed, a narrator turns it into a plain-language explanation, and a validator checks every cited fact and number against the record before it is shown. A "Why?" panel in the Streamlit app, `/explain` endpoints, and three new database columns (`decision_record`, `explanation`, `explanation_audit`). 41 test files.
 - **Platform, phase 1** (`platform/`): a router, model services (`svm-api`, `embed-api`, `ensemble-api`, `agentic-api`), a shared contract and observability library, and Postgres on docker-compose, with a design spec and implementation plan (`docs/superpowers/`). Logging, metrics and tracing hooks are installed in every service.
-- **Router fallback** (branch `router-fallback`): if the primary model service times out, is unreachable or returns an error, the router retries once on a fallback service, so a complaint is answered by Improved Model 1 if the ensemble is down. 5 new tests; all 20 router tests pass.
+- **Router fallback** (branch `router-fallback`, not yet merged): if the primary model service times out, is unreachable or returns an error, the router retries once on a fallback service, so a complaint is answered by Improved Model 1 if the ensemble is down. 5 new tests; all 20 router tests pass.
 - **Agentic issue-classification code with tests** (`src/agentic/`), and a root `pyproject.toml` that exposes `src/` as a package.
 - **Unit economics and pricing analysis** (`docs/unit_economics.md`, PR #39).
 
 ## What changed since session 10
 - **The north star definition changed** from 95% to 90% precision. 90% is reached by more complaints and holds better on newer data, which suits the product's "route the clear cases, review the rest" design. Under the new definition the previous figure is Improved Model 1's 85.3%.
-- **The platform now serves an ensemble.** Combining four models with a gate and per-team floors routes more complaints than Improved Model 1 alone and stays above its precision target on the January–February 2026 cohort, where Improved Model 1 does not. The platform runs on docker-compose and is not yet deployed; the live Streamlit app still routes with Improved Model 1.
+- **The served model is now an ensemble.** Combining four models with a gate and per-team floors routes more complaints than Improved Model 1 alone and stays above its precision target on the January–February 2026 cohort, where Improved Model 1 does not.
 - **The product explains its decisions.** Each routing decision can now be shown with a validated, plain-language reason.
 - **Jev is concluded.** Its best configuration (structured descriptions, session 10) does not improve routing, so it is not part of the ensemble.
 
@@ -75,7 +75,7 @@ north_star:
 - **Human review has no workflow.** Complaints below the routing threshold are marked "Under review", but there is no queue or reviewer screen yet.
 
 ## Next week's goal
-  - Run the Supabase migration for the explainability columns (the explainability and platform work merged in PR #40) and merge the router fallback.
+  - Merge the explainability, platform and router-fallback branches into main, after the Supabase migration.
   - Add a CI pipeline that runs the test suites on every pull request.
   - Build a human review queue for complaints below the threshold, with the model's suggestions and the validated explanation.
   - Fold Improved Model 3 into the ensemble once fully trained.
