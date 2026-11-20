@@ -109,3 +109,82 @@ def test_metrics_endpoint_present(client):
     resp = client.get("/metrics")
     assert resp.status_code == 200
     assert "# HELP" in resp.text
+
+
+# ---------------------------------------------------------------- fallback
+from router.routes import SERVED_BY_HEADER
+
+TEXT = {"text": "I have a long enough complaint text to pass validation."}
+FALLBACK_RESPONSE = {**PRIMARY_RESPONSE, "model_name": "improved_model_1_fallback"}
+
+
+@pytest.fixture
+def fb_client(monkeypatch):
+    monkeypatch.setenv("PRIMARY_URL", "http://ensemble-api.test")
+    monkeypatch.setenv("FALLBACK_URL", "http://svm-api.test")
+    app = create_app()
+    with TestClient(app) as c:
+        yield c
+
+
+@respx.mock
+def test_healthy_primary_is_used_and_fallback_not_called(fb_client):
+    respx.post("http://ensemble-api.test/predict").mock(
+        return_value=httpx.Response(200, json=PRIMARY_RESPONSE))
+    fallback = respx.post("http://svm-api.test/predict").mock(
+        return_value=httpx.Response(200, json=FALLBACK_RESPONSE))
+    resp = fb_client.post("/predict", json=TEXT)
+    assert resp.status_code == 200
+    assert resp.headers[SERVED_BY_HEADER] == "primary"
+    assert not fallback.called
+
+
+@respx.mock
+def test_primary_5xx_falls_back(fb_client):
+    respx.post("http://ensemble-api.test/predict").mock(
+        return_value=httpx.Response(500, text="boom"))
+    respx.post("http://svm-api.test/predict").mock(
+        return_value=httpx.Response(200, json=FALLBACK_RESPONSE))
+    resp = fb_client.post("/predict", json=TEXT)
+    assert resp.status_code == 200
+    assert resp.headers[SERVED_BY_HEADER] == "fallback"
+    assert resp.json()["model_name"] == "improved_model_1_fallback"
+
+
+@respx.mock
+def test_primary_timeout_falls_back_with_same_request_id(fb_client):
+    captured: dict = {}
+
+    def _record(request):
+        captured["body"] = request.read().decode()
+        return httpx.Response(200, json=FALLBACK_RESPONSE)
+
+    respx.post("http://ensemble-api.test/predict").mock(
+        side_effect=httpx.TimeoutException("slow"))
+    respx.post("http://svm-api.test/predict").mock(side_effect=_record)
+    resp = fb_client.post("/predict", json={**TEXT, "request_id": "rid-7"})
+    assert resp.status_code == 200
+    assert resp.headers[SERVED_BY_HEADER] == "fallback"
+    assert "rid-7" in captured["body"]
+
+
+@respx.mock
+def test_both_models_down_returns_503(fb_client):
+    respx.post("http://ensemble-api.test/predict").mock(
+        side_effect=httpx.ConnectError("refused"))
+    respx.post("http://svm-api.test/predict").mock(
+        return_value=httpx.Response(503, text="down"))
+    resp = fb_client.post("/predict", json=TEXT)
+    assert resp.status_code == 503
+    assert resp.json()["error_code"] == "all_models_unhealthy"
+
+
+@respx.mock
+def test_rejected_request_is_not_retried_on_fallback(fb_client):
+    respx.post("http://ensemble-api.test/predict").mock(
+        return_value=httpx.Response(422, json={"detail": "bad"}))
+    fallback = respx.post("http://svm-api.test/predict").mock(
+        return_value=httpx.Response(200, json=FALLBACK_RESPONSE))
+    resp = fb_client.post("/predict", json=TEXT)
+    assert resp.status_code == 422
+    assert not fallback.called
