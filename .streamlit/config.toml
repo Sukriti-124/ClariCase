@@ -1,10 +1,13 @@
 [theme]
 base = "light"
-primaryColor = "#4A4785"
-backgroundColor = "#F7F7FA"
-secondaryBackgroundColor = "#EFEFF4"
-textColor = "#26253D"
-font = "sans serif"
+primaryColor = "#4338CA"
+backgroundColor = "#F6F6FA"
+secondaryBackgroundColor = "#EEEEF4"
+textColor = "#17162E"
+borderColor = "#E4E4EE"
+baseRadius = "0.75rem"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+headingFont = "Space Grotesk:https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap"
 
 [client]
 toolbarMode = "minimal"

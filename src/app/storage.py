@@ -1,7 +1,7 @@
 """Complaint storage for the intake app.
 
 Supabase when deployed; a local SQLite file for development when no
-Supabase secrets are configured. Both expose add(), get() and update().
+Supabase secrets are configured. Both expose add(), add_many(), get() and update().
 """
 
 from __future__ import annotations
@@ -71,6 +71,11 @@ class SupabaseStore:
     def add(self, record: dict) -> None:
         self.client.table(TABLE).insert(record).execute()
 
+    def add_many(self, records: list[dict]) -> None:
+        # One request, so the batch is saved whole or not at all.
+        if records:
+            self.client.table(TABLE).insert(records).execute()
+
     def get(self, tracking_id: str) -> dict | None:
         rows = (self.client.table(TABLE).select("*")
                 .eq("tracking_id", tracking_id).limit(1).execute().data)
@@ -120,6 +125,13 @@ class LocalStore:
             con.execute(f"INSERT INTO {TABLE} ({', '.join(COLUMNS)}) "
                         f"VALUES ({', '.join('?' * len(COLUMNS))})",
                         [record[c] for c in COLUMNS])
+
+    def add_many(self, records: list[dict]) -> None:
+        # One transaction, so the batch is saved whole or not at all.
+        with self._connect() as con:
+            con.executemany(f"INSERT INTO {TABLE} ({', '.join(COLUMNS)}) "
+                            f"VALUES ({', '.join('?' * len(COLUMNS))})",
+                            [[r[c] for c in COLUMNS] for r in records])
 
     def get(self, tracking_id: str) -> dict | None:
         with self._connect() as con:
