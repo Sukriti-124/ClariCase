@@ -1,6 +1,33 @@
 name: claricase-platform
 
 services:
+  # Product-first issue classification. Independent of the older /choose stage.
+  issue-api:
+    profiles: ["issues"]
+    build:
+      context: ..
+      dockerfile: platform/services/issue-api/Dockerfile
+    image: claricase/issue-api:dev
+    environment:
+      ISSUE_BACKEND: ${ISSUE_BACKEND:-openai_compat}
+      ISSUE_BASE_URL: ${ISSUE_BASE_URL:-https://api.groq.com/openai/v1}
+      ISSUE_API_KEY: ${ISSUE_API_KEY:-}
+      ISSUE_MODEL: ${ISSUE_MODEL:-}
+      ISSUE_RESPONSE_FORMAT: ${ISSUE_RESPONSE_FORMAT:-json_object}
+      ISSUE_TIMEOUT_S: ${ISSUE_TIMEOUT_S:-25}
+      ISSUE_CONCURRENCY: ${ISSUE_CONCURRENCY:-4}
+      ISSUE_MAX_OUTPUT_TOKENS: ${ISSUE_MAX_OUTPUT_TOKENS:-800}
+      ISSUE_PRODUCT_URL: ${ISSUE_PRODUCT_URL:-http://ensemble-api:8000}
+      ISSUE_PRODUCT_TIMEOUT_S: ${ISSUE_PRODUCT_TIMEOUT_S:-10}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports:
+      - "127.0.0.1:${ISSUE_API_PORT:-8081}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz',timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   postgres:
     image: postgres:16-alpine
     environment:
