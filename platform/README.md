@@ -13,6 +13,11 @@ curl → router → svm-api → prediction response
 
 ## Services
 
+The optional [product-first issue backend](services/issue-api/README.md) adds
+`POST /classify-issue` (complaint + predicted team) and a combined `POST /predict`
+workflow. Start it with the `issues` Compose profile. It uses the original
+73-issue catalog and does not change the existing model services.
+
 | Service      | Role                                                  | Host port |
 |--------------|-------------------------------------------------------|-----------|
 | `router`     | Proxies `/predict` to `PRIMARY_URL` (svm-api)         | 8080      |

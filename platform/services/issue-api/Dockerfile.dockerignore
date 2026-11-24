@@ -1,0 +1,14 @@
+**
+!platform/
+!platform/shared/
+!platform/shared/**
+!platform/services/
+!platform/services/issue-api/
+!platform/services/issue-api/**
+!data/
+!data/processed/
+!data/processed/team_mapping.csv
+!data/processed/issue_mapping.csv
+**/__pycache__/**
+**/*.egg-info/**
+**/.pytest_cache/**
