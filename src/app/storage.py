@@ -1,7 +1,8 @@
 """Complaint storage for the intake app.
 
 Supabase when deployed; a local SQLite file for development when no
-Supabase secrets are configured. Both expose add(), get() and update().
+Supabase secrets are configured. Both expose add(), add_many(), get(),
+update(), assign() and fetch_recent().
 """
 
 from __future__ import annotations
@@ -25,11 +26,24 @@ COLUMNS = ["tracking_id", "submitted_at", "complaint_text", "team_id",
 # Added after the first release; nullable so older rows stay valid.
 ADDED_COLUMNS = {"issue_id": "TEXT", "issue_label": "TEXT", "route": "TEXT",
                  "decision_record": "TEXT", "explanation": "TEXT",
-                 "explanation_audit": "TEXT"}
+                 "explanation_audit": "TEXT",
+                 # Set when an admin assigns a "needs review" complaint.
+                 "model_team_id": "TEXT", "model_team_name": "TEXT",
+                 "reviewed_at": "TEXT", "review_note": "TEXT"}
 # Columns update() may write. JSON text in SQLite, jsonb in Supabase.
 JSON_COLUMNS = ("decision_record", "explanation", "explanation_audit")
 UPDATABLE_COLUMNS = frozenset(JSON_COLUMNS)
 STATUS_BY_ROUTE = {"auto": "Routed", "review": "Under review"}
+ASSIGNED = "Assigned"
+REVIEW_NOTE_MAX = 500
+# Columns the admin dashboard reads; the large decision record is left out.
+DASHBOARD_COLUMNS = ["tracking_id", "submitted_at", "complaint_text", "team_id",
+                     "team_name", "confidence", "status", "issue_id",
+                     "issue_label", "route", "explanation"]
+REVIEW_COLUMNS = ["model_team_id", "model_team_name", "reviewed_at",
+                  "review_note"]
+DASHBOARD_MAX_ROWS = 50_000
+PAGE_SIZE = 1000   # Supabase returns at most 1,000 rows per request.
 
 
 def new_tracking_id() -> str:
@@ -40,6 +54,29 @@ def new_tracking_id() -> str:
 def normalise_tracking_id(raw: str) -> str:
     tid = raw.strip().upper()
     return tid if tid.startswith("CC-") else f"CC-{tid}"
+
+
+def assignment_fields(row: dict, team_id: str, team_name: str,
+                      note: str | None = None,
+                      now: datetime | None = None) -> dict:
+    """Columns to write when an admin assigns a complaint to a team.
+
+    The model's original choice is kept in model_team_*; if the complaint
+    was already assigned once, the first recorded model choice is preserved.
+    """
+    if not team_id or not team_name:
+        raise ValueError("a team is required")
+    now = now or datetime.now(timezone.utc)
+    note = (note or "").strip()[:REVIEW_NOTE_MAX] or None
+    return {
+        "team_id": team_id,
+        "team_name": team_name,
+        "status": ASSIGNED,
+        "model_team_id": row.get("model_team_id") or row["team_id"],
+        "model_team_name": row.get("model_team_name") or row["team_name"],
+        "reviewed_at": now.isoformat(timespec="seconds"),
+        "review_note": note,
+    }
 
 
 def build_record(text: str, prediction: dict) -> dict:
@@ -71,6 +108,11 @@ class SupabaseStore:
     def add(self, record: dict) -> None:
         self.client.table(TABLE).insert(record).execute()
 
+    def add_many(self, records: list[dict]) -> None:
+        # One request, so the batch is saved whole or not at all.
+        if records:
+            self.client.table(TABLE).insert(records).execute()
+
     def get(self, tracking_id: str) -> dict | None:
         rows = (self.client.table(TABLE).select("*")
                 .eq("tracking_id", tracking_id).limit(1).execute().data)
@@ -80,6 +122,38 @@ class SupabaseStore:
         _check_fields(fields)
         (self.client.table(TABLE).update(fields)
          .eq("tracking_id", tracking_id).execute())
+
+    def assign(self, tracking_id: str, team_id: str, team_name: str,
+               note: str | None = None) -> dict:
+        row = self.get(tracking_id)
+        if row is None:
+            raise KeyError(tracking_id)
+        fields = assignment_fields(row, team_id, team_name, note)
+        (self.client.table(TABLE).update(fields)
+         .eq("tracking_id", tracking_id).execute())
+        return {**row, **fields}
+
+    def fetch_recent(self, limit: int = DASHBOARD_MAX_ROWS) -> list[dict]:
+        """Newest complaints first, for the admin dashboard."""
+        try:
+            return self._fetch(DASHBOARD_COLUMNS + REVIEW_COLUMNS, limit)
+        except Exception:
+            # Review columns not migrated yet (see schema.sql).
+            return self._fetch(DASHBOARD_COLUMNS, limit)
+
+    def _fetch(self, columns: list[str], limit: int) -> list[dict]:
+        rows: list[dict] = []
+        cols = ", ".join(columns)
+        while len(rows) < limit:
+            start = len(rows)
+            end = min(start + PAGE_SIZE, limit) - 1      # inclusive
+            page = (self.client.table(TABLE).select(cols)
+                    .order("submitted_at", desc=True)
+                    .range(start, end).execute().data)
+            rows.extend(page)
+            if len(page) < end - start + 1:               # last page
+                break
+        return rows
 
 
 def _check_fields(fields: dict) -> None:
@@ -121,6 +195,13 @@ class LocalStore:
                         f"VALUES ({', '.join('?' * len(COLUMNS))})",
                         [record[c] for c in COLUMNS])
 
+    def add_many(self, records: list[dict]) -> None:
+        # One transaction, so the batch is saved whole or not at all.
+        with self._connect() as con:
+            con.executemany(f"INSERT INTO {TABLE} ({', '.join(COLUMNS)}) "
+                            f"VALUES ({', '.join('?' * len(COLUMNS))})",
+                            [[r[c] for c in COLUMNS] for r in records])
+
     def get(self, tracking_id: str) -> dict | None:
         with self._connect() as con:
             row = con.execute(f"SELECT * FROM {TABLE} WHERE tracking_id = ?",
@@ -146,3 +227,40 @@ class LocalStore:
             con.execute(f"UPDATE {TABLE} SET "
                         f"{', '.join(f'{c} = ?' for c in names)} "
                         f"WHERE tracking_id = ?", [*values, tracking_id])
+
+    def assign(self, tracking_id: str, team_id: str, team_name: str,
+               note: str | None = None) -> dict:
+        row = self.get(tracking_id)
+        if row is None:
+            raise KeyError(tracking_id)
+        fields = assignment_fields(row, team_id, team_name, note)
+        with self._connect() as con:
+            con.execute(f"UPDATE {TABLE} SET "
+                        f"{', '.join(f'{c} = ?' for c in fields)} "
+                        f"WHERE tracking_id = ?",
+                        [*fields.values(), tracking_id])
+        return {**row, **fields}
+
+    def fetch_recent(self, limit: int = DASHBOARD_MAX_ROWS) -> list[dict]:
+        """Newest complaints first, for the admin dashboard."""
+        cols = DASHBOARD_COLUMNS + REVIEW_COLUMNS
+        with self._connect() as con:
+            rows = con.execute(
+                f"SELECT {', '.join(cols)} FROM {TABLE} "
+                f"ORDER BY submitted_at DESC LIMIT ?", (limit,)).fetchall()
+        out = []
+        for row in rows:
+            record = dict(row)
+            if record.get("explanation") is not None:
+                record["explanation"] = json.loads(record["explanation"])
+            out.append(record)
+        return out
+
+
+def make_store(secrets) -> SupabaseStore | LocalStore:
+    """Supabase when its secrets are configured, else the local SQLite file."""
+    try:
+        cfg = secrets["supabase"]
+        return SupabaseStore(cfg["url"], cfg["key"])
+    except (KeyError, FileNotFoundError, TypeError):
+        return LocalStore()
