@@ -17,11 +17,11 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from src.app import bulk
+from src.app import bulk, theme
 from src.app.bulk import issue_name
+from src.app.highlight import highlight
 from src.app.pii import mask
-from src.app.storage import (LocalStore, SupabaseStore, build_record,
-                             normalise_tracking_id)
+from src.app.storage import build_record, make_store, normalise_tracking_id
 from src.improved_model_1.predict import load_model, predict
 
 MIN_WORDS = bulk.MIN_WORDS
@@ -46,182 +46,8 @@ PHRASES_SHOWN = 5
 st.set_page_config(page_title="ClariCase", page_icon=":material/forum:",
                    layout="wide")
 
-# ---------------------------------------------------------------- styles
-# Cards are keyed containers (st.container(key="card_…")), which Streamlit
-# renders with the class "st-key-card_…".
-st.markdown("""
-<style>
-  .block-container { max-width: 1240px; padding-top: 1.2rem;
-                     padding-bottom: 3rem; }
-  [data-testid="stStatusWidget"] { visibility: hidden; }
-  [data-testid="stHeader"] { background: transparent; }
-
-  /* Header */
-  .cc-top { display: flex; align-items: center; justify-content: space-between;
-            gap: 16px; flex-wrap: wrap; padding: 6px 0 18px;
-            border-bottom: 1px solid #E4E4EE; margin-bottom: 8px; }
-  .cc-logo { display: flex; align-items: center; gap: 10px; }
-  .cc-mark { width: 34px; height: 34px; border-radius: 9px; background: #17162E;
-             color: #fff; display: flex; align-items: center;
-             justify-content: center; font-family: 'Space Grotesk', sans-serif;
-             font-weight: 700; font-size: 17px; }
-  .cc-word { font-family: 'Space Grotesk', sans-serif; font-weight: 700;
-             font-size: 21px; letter-spacing: -0.01em; color: #17162E; }
-  .cc-pill { display: inline-flex; align-items: center; gap: 6px;
-             font-size: 12px; font-weight: 600; padding: 6px 11px;
-             border-radius: 999px; }
-  .cc-pill-green { color: #166534; background: #E8F7EE; }
-  .cc-pill-indigo { color: #3730A3; background: #EEF0FF; }
-
-  /* Tabs as a nav bar */
-  [data-baseweb="tab-list"] { gap: 6px; }
-  [data-baseweb="tab-highlight"], [data-baseweb="tab-border"] { display: none; }
-  button[data-baseweb="tab"] { padding: 9px 16px !important;
-                               border-radius: 10px; height: auto; }
-  button[data-baseweb="tab"] p { font-size: 15px; font-weight: 500;
-                                 color: #4A4A66; }
-  button[data-baseweb="tab"][aria-selected="true"] { background: #EEF0FF; }
-  button[data-baseweb="tab"][aria-selected="true"] p { color: #4338CA;
-                                                       font-weight: 600; }
-
-  /* Page intro */
-  .cc-eyebrow { margin: 18px 0 4px; font-size: 13px; font-weight: 600;
-                color: #4338CA; letter-spacing: 0.05em;
-                text-transform: uppercase; }
-  .cc-h1 { margin: 0; font-family: 'Space Grotesk', sans-serif;
-           font-size: 32px; font-weight: 700; line-height: 1.15;
-           letter-spacing: -0.02em; color: #17162E; }
-  .cc-sub { margin: 8px 0 22px; font-size: 15px; color: #5B5B76;
-            max-width: 660px; }
-
-  /* Cards */
-  [class*="st-key-card_"] { background: #FFFFFF; border: 1px solid #E4E4EE;
-                            border-radius: 16px; padding: 24px 26px; }
-  .cc-card-title { font-size: 17px; font-weight: 600; color: #17162E;
-                   margin: 0; }
-  .cc-row { display: flex; justify-content: space-between; align-items: center;
-            gap: 12px; flex-wrap: wrap; }
-  .cc-label { font-size: 12px; font-weight: 600; color: #5B5B76;
-              text-transform: uppercase; letter-spacing: 0.05em;
-              margin: 18px 0 8px; }
-  .cc-muted { font-size: 13px; color: #5B5B76; }
-  .cc-badge { display: inline-flex; align-items: center; font-size: 12px;
-              font-weight: 700; letter-spacing: 0.03em; padding: 5px 12px;
-              border-radius: 999px; text-transform: uppercase; }
-  .cc-routed { background: #DCFCE7; color: #166534; }
-  .cc-review { background: #FEF3C7; color: #92400E; }
-  .cc-received { background: #E2E8F0; color: #334155; }
-
-  /* Team and bars */
-  .cc-team { display: flex; align-items: center; justify-content: space-between;
-             gap: 12px; }
-  .cc-team-name { font-family: 'Space Grotesk', sans-serif; font-size: 22px;
-                  font-weight: 600; color: #17162E; letter-spacing: -0.01em; }
-  .cc-team-conf { font-family: 'Space Grotesk', sans-serif; font-size: 24px;
-                  font-weight: 700; color: #4338CA; text-align: right;
-                  line-height: 1.1; }
-  .cc-track { height: 8px; background: #EEEEF4; border-radius: 999px;
-              overflow: hidden; margin-top: 12px; }
-  .cc-fill { height: 100%; background: #4338CA; border-radius: 999px; }
-  .cc-bar-row { display: grid; grid-template-columns: minmax(0, 1fr) 34% 46px;
-                gap: 12px; align-items: center; margin: 9px 0; }
-  .cc-bar-row .cc-track { margin-top: 0; height: 6px; }
-  .cc-bar-name { font-size: 14px; color: #17162E; overflow: hidden;
-                 text-overflow: ellipsis; white-space: nowrap; }
-  .cc-bar-val { font-size: 13px; color: #5B5B76; text-align: right; }
-  .cc-chip { display: inline-block; font-size: 13px; padding: 6px 12px;
-             margin: 0 6px 8px 0; border-radius: 999px; background: #F6F6FA;
-             border: 1px solid #E4E4EE; color: #17162E; }
-
-  /* Steps under the form */
-  .cc-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-              gap: 12px; margin-top: 16px; }
-  .cc-step { background: #fff; border: 1px solid #E4E4EE; border-radius: 14px;
-             padding: 14px 16px; }
-  .cc-step-num { font-size: 12px; font-weight: 700; color: #4338CA; }
-  .cc-step-title { font-size: 14px; font-weight: 600; margin-top: 4px;
-                   color: #17162E; }
-  .cc-step-text { font-size: 13px; color: #5B5B76; margin-top: 2px;
-                  line-height: 1.45; }
-
-  /* Empty state */
-  .cc-empty { text-align: center; padding: 48px 12px; color: #5B5B76; }
-  .cc-empty-icon { width: 52px; height: 52px; border-radius: 14px;
-                   background: #EEF0FF; color: #4338CA; margin: 0 auto 14px;
-                   display: flex; align-items: center; justify-content: center; }
-
-  /* Bulk stepper and KPIs */
-  .cc-stepper { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 18px;
-                padding: 0; list-style: none; }
-  .cc-stepper li { display: flex; align-items: center; gap: 8px;
-                   font-size: 14px; font-weight: 600; background: #fff;
-                   border: 1px solid #E4E4EE; border-radius: 999px;
-                   padding: 7px 14px 7px 7px; color: #5B5B76; }
-  .cc-stepper li span { width: 22px; height: 22px; border-radius: 50%;
-                        background: #EEEEF4; font-size: 12px;
-                        display: inline-flex; align-items: center;
-                        justify-content: center; }
-  .cc-stepper li.done { color: #166534; }
-  .cc-stepper li.done span { background: #DCFCE7; }
-  .cc-stepper li.now { background: #4338CA; border-color: #4338CA;
-                       color: #fff; }
-  .cc-stepper li.now span { background: #fff; color: #4338CA; }
-  .cc-kpis { display: grid; grid-template-columns: repeat(auto-fit,
-             minmax(140px, 1fr)); gap: 12px; margin-top: 14px; }
-  .cc-kpi { border: 1px solid #EEEEF4; border-radius: 12px; padding: 14px 16px; }
-  .cc-kpi-num { font-family: 'Space Grotesk', sans-serif; font-size: 28px;
-                font-weight: 700; margin-top: 2px; color: #17162E; }
-  .cc-file { display: flex; align-items: center; gap: 14px;
-             border: 1.5px dashed #C7C9EE; background: #FAFAFF;
-             border-radius: 14px; padding: 14px 16px; margin: 4px 0 14px; }
-
-  /* Track timeline */
-  .cc-tl { list-style: none; margin: 4px 0 0; padding: 0; }
-  .cc-tl li { display: flex; gap: 14px; }
-  .cc-tl-rail { display: flex; flex-direction: column; align-items: center; }
-  .cc-tl-dot { width: 22px; height: 22px; border-radius: 50%; color: #fff;
-               display: inline-flex; align-items: center;
-               justify-content: center; flex: 0 0 auto; font-size: 12px; }
-  .cc-tl-line { width: 2px; flex: 1 1 auto; min-height: 20px; }
-  .cc-tl-body { padding-bottom: 16px; }
-  .cc-tl-title { font-size: 14px; font-weight: 600; color: #17162E; }
-
-  .cc-footer { display: flex; justify-content: space-between; gap: 12px;
-               flex-wrap: wrap; font-size: 13px; color: #5B5B76;
-               border-top: 1px solid #E4E4EE; margin-top: 40px;
-               padding-top: 16px; }
-
-  @media (max-width: 640px) {
-    .cc-steps { grid-template-columns: 1fr; }
-    .cc-h1 { font-size: 26px; }
-  }
-</style>
-""", unsafe_allow_html=True)
-
-ICON_LOCK = ('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" '
-             'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
-             'stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" '
-             'width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 '
-             '8 0v4"></path></svg>')
-ICON_CHECK = ('<svg width="12" height="12" viewBox="0 0 24 24" fill="none" '
-              'stroke="currentColor" stroke-width="3" stroke-linecap="round" '
-              'stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 '
-              '17l-5-5"></path></svg>')
-ICON_SHIELD = ('<svg width="13" height="13" viewBox="0 0 24 24" fill="none" '
-               'stroke="currentColor" stroke-width="2.5" stroke-linecap="round" '
-               'stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 '
-               '8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 '
-               '4-4"></path></svg>')
-ICON_ROUTE = ('<svg width="24" height="24" viewBox="0 0 24 24" fill="none" '
-              'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
-              'stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 '
-              '13"></path><path d="M22 2l-7 20-4-9-9-4 20-7z"></path></svg>')
-ICON_FILE = ('<svg width="22" height="22" viewBox="0 0 24 24" fill="none" '
-             'stroke="#4338CA" stroke-width="2" stroke-linecap="round" '
-             'stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 '
-             '0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path '
-             'd="M14 2v6h6"></path><path d="M8 13h8"></path><path d="M8 '
-             '17h8"></path></svg>')
+# The dark band reaches this far down; cards start on it and overlap it.
+st.markdown(theme.css(band_px=330), unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------- resources
@@ -232,11 +58,7 @@ def get_model():
 
 @st.cache_resource
 def get_store():
-    try:
-        cfg = st.secrets["supabase"]
-        return SupabaseStore(cfg["url"], cfg["key"])
-    except (KeyError, FileNotFoundError):
-        return LocalStore()
+    return make_store(st.secrets)
 
 
 store = get_store()
@@ -285,36 +107,37 @@ def candidates_to_show(candidates: list[dict]) -> list[dict]:
     return candidates[:n]
 
 
-def badge(status: str) -> str:
-    css, text = {"Routed": ("cc-routed", "Auto-routed"),
-                 "Under review": ("cc-review", "Needs review")}.get(
-        status, ("cc-received", status))
-    return f'<span class="cc-badge {css}">{esc(text)}</span>'
+def status_mark(status: str) -> str:
+    css, text = {"Routed": ("cc-s-ok", "Auto-routed"),
+                 "Under review": ("cc-s-warn", "Needs review"),
+                 "Assigned": ("cc-s-ok", "Assigned")}.get(
+        status, ("", status))
+    return f'<span class="cc-status {css}">{esc(text)}</span>'
+
+
+def panel_title(title: str, note: str = "") -> str:
+    note_html = f"<span>{note}</span>" if note else ""
+    return f'<div class="cc-ph">{title}{note_html}</div>'
 
 
 def html_block(markup: str) -> None:
     st.markdown(markup, unsafe_allow_html=True)
 
 
-def bar_rows(items: list[tuple[str, float]], strong_first: bool = True) -> str:
+def bar_rows(items: list[tuple[str, float]]) -> str:
     rows = []
     for i, (name, conf) in enumerate(items):
         pct = round(min(max(conf, 0.0), 1.0) * 100)
-        color = "#4338CA" if (i == 0 or not strong_first) else "#A5A8E0"
-        weight = 600 if (i == 0 and strong_first) else 400
         rows.append(
-            f'<div class="cc-bar-row"><span class="cc-bar-name" '
-            f'style="font-weight:{weight}">{esc(name)}</span>'
-            f'<div class="cc-track"><div class="cc-fill" style="width:{pct}%;'
-            f'background:{color}"></div></div>'
+            f'<div class="cc-bar-row{" top" if i == 0 else ""}"><span '
+            f'class="cc-bar-name">{esc(name)}</span><div class="cc-track">'
+            f'<div class="cc-fill" style="width:{pct}%"></div></div>'
             f'<span class="cc-bar-val">{pct}%</span></div>')
     return "".join(rows)
 
 
-def intro(eyebrow: str, title: str, sub: str) -> None:
-    html_block(f'<div class="cc-eyebrow">{eyebrow}</div>'
-               f'<div class="cc-h1">{title}</div>'
-               f'<div class="cc-sub">{sub}</div>')
+def intro(title: str, sub: str) -> None:
+    html_block(f'<div class="cc-h1">{title}</div><div class="cc-sub">{sub}</div>')
 
 
 # ---------------------------------------------------------------- single
@@ -333,24 +156,20 @@ def handle_submit() -> None:
     st.session_state["pending_text"] = mask(text)
 
 
-STEPS = ("Masking personal details", "Identifying team and issue",
-         "Saving and assigning a tracking ID")
+STEPS = ("Masking personal details", "Identifying the team",
+         "Assigning the issue", "Saving and assigning a tracking ID")
 
 
 def render_steps(placeholder, current: int) -> None:
     # Steps before `current` are done, `current` is in progress, rest pending.
-    rows = []
+    items = []
     for i, name in enumerate(STEPS):
-        if i < current:
-            rows.append(f":green[:material/check_circle:] {name}")
-        elif i == current:
-            rows.append(f":material/progress_activity: **{name}…**")
-        else:
-            rows.append(f":gray[:material/radio_button_unchecked: {name}]")
+        state = "done" if i < current else "now" if i == current else "todo"
+        items.append(f'<li class="{state}">{name}</li>')
     # A fresh key per step: each redraw is a new element in the same run.
     with placeholder.container(key=f"card_steps_{current}"):
-        html_block('<div class="cc-card-title">Routing your complaint</div>')
-        st.markdown("  \n".join(rows))
+        html_block(panel_title("Processing")
+                   + f'<ul class="cc-proc">{"".join(items)}</ul>')
 
 
 def process_complaint(text: str) -> dict:
@@ -358,11 +177,15 @@ def process_complaint(text: str) -> dict:
     render_steps(placeholder, 0)
     time.sleep(STEP_PAUSE_SEC)
 
+    # One model call gives both; the steps show the team, then the issue.
     render_steps(placeholder, 1)
     prediction = predict(text, model=get_model())
     time.sleep(STEP_PAUSE_SEC)
 
     render_steps(placeholder, 2)
+    time.sleep(STEP_PAUSE_SEC)
+
+    render_steps(placeholder, 3)
     record = build_record(text, prediction)
     try:
         store.add(record)
@@ -381,46 +204,32 @@ def render_result(record: dict, prediction: dict) -> None:
     teams = candidates_to_show(prediction["top_k"])
     issues = prediction["issue_top_k"][:ISSUES_SHOWN]
     routed = prediction["route"] == "auto"
+    top = teams[0]
 
-    with st.container(key="card_result"):
-        parts = [f'<div class="cc-row"><div class="cc-card-title">Routing '
-                 f'decision</div>{badge(record["status"])}</div>']
-        if routed:
-            parts.append('<div class="cc-muted" style="margin-top:6px">Sent '
-                         'automatically to the team that handles it.</div>')
-        else:
-            parts.append('<div class="cc-muted" style="margin-top:6px">Below '
-                         'the routing threshold, so a specialist will confirm '
-                         'the team.</div>')
-
-        if len(teams) == 1:
-            top = teams[0]
-            pct = round(top["confidence"] * 100)
-            parts.append(
-                f'<div class="cc-label">{"Sent to" if routed else "Most likely team"}</div>'
-                f'<div class="cc-team"><div class="cc-team-name">'
-                f'{esc(top["team_name"])}</div><div><div class="cc-team-conf">'
-                f'{pct}%</div><div class="cc-muted" style="text-align:right">'
-                f'confidence</div></div></div>'
-                f'<div class="cc-track"><div class="cc-fill" '
-                f'style="width:{pct}%"></div></div>')
-        else:
-            parts.append('<div class="cc-label">Most likely teams</div>'
-                         + bar_rows([(t["team_name"], t["confidence"])
-                                     for t in teams]))
-
-        parts.append('<div class="cc-label">'
-                     + ("Likely issue" if len(issues) == 1 else "Likely issues")
-                     + '</div>'
-                     + bar_rows([(issue_name(i["issue_label"]), i["confidence"])
-                                 for i in issues]))
-        if len(teams) > 1:
-            parts.append(f'<div class="cc-muted">Issues shown are for the '
-                         f'{esc(teams[0]["team_name"])}.</div>')
-        parts.append('<div class="cc-label">Tracking ID</div>')
-        html_block("".join(parts))
-        st.code(record["tracking_id"], language=None)
-        st.caption("Save this ID to check progress in the **Track** tab.")
+    also = ""
+    if len(teams) > 1:
+        others = ", ".join(f'{esc(t["team_name"])} ({round(t["confidence"] * 100)}%)'
+                           for t in teams[1:])
+        also = f'<div class="cc-also">Also possible: {others}</div>'
+    note = ("" if routed else
+            '<div class="cc-also">Below the routing threshold, so a specialist '
+            'will confirm the team.</div>')
+    html_block(
+        f'<div class="cc-result-top"><div class="cc-team">'
+        f'<div class="cc-avatar">{theme.team_code(top.get("team_id"), top["team_name"])}</div>'
+        f'<div><div class="cc-team-label">{"Sent to" if routed else "Most likely team"}</div>'
+        f'<div class="cc-team-name">{esc(top["team_name"])}</div>'
+        f'<div class="cc-meta">{status_mark(record["status"])}</div>'
+        f'</div></div>'
+        f'{theme.gauge(top["confidence"], theme.ACCENT if routed else theme.WARN)}'
+        f'</div>{also}{note}'
+        '<div class="cc-label">Tracking ID</div>')
+    st.code(record["tracking_id"], language=None)
+    html_block(
+        '<div class="cc-muted cc-track-note">Copy this ID to check progress on '
+        'the Track tab.</div>'
+        f'<div class="cc-label">{"Likely issue" if len(issues) == 1 else "Likely issues"}</div>'
+        + bar_rows([(issue_name(i["issue_label"]), i["confidence"]) for i in issues]))
 
 
 def _explain(record: dict, prediction: dict) -> dict:
@@ -478,9 +287,15 @@ def _phrases(decision_record) -> list[str]:
         return []
     out = []
     for d in sec.drivers or []:
-        if d.kind == "ngram" and d.text and d.contribution > 0 \
-                and d.text not in out:
-            out.append(d.text)
+        # The phrase is the driver's label: the vectorizer feature name,
+        # "word__<n-gram>" or "char__<fragment>". Only whole words are shown.
+        label = d.text or d.label or ""
+        if label.startswith("char__"):
+            continue
+        phrase = label.removeprefix("word__")
+        if d.kind == "ngram" and phrase and d.contribution > 0 \
+                and phrase not in out:
+            out.append(phrase)
         if len(out) == PHRASES_SHOWN:
             break
     return out
@@ -489,9 +304,9 @@ def _phrases(decision_record) -> list[str]:
 def render_why_panel(record: dict, prediction: dict) -> None:
     key = record["tracking_id"]
     cache = st.session_state.setdefault("explanations", {})
-    with st.container(key="card_why"):
+    with st.container():
         if key not in cache:
-            html_block('<div class="cc-card-title">Why this team?</div>')
+            html_block('<div class="cc-label">Why this team</div>')
             with st.spinner("Explaining this decision…"):
                 cache[key] = _explain(record, prediction)
             entry = cache[key]
@@ -510,24 +325,23 @@ def render_why_panel(record: dict, prediction: dict) -> None:
         entry = cache[key]
         expl = entry["explanation"]
         if expl is None:
-            html_block('<div class="cc-card-title">Why this team?</div>')
-            st.info("An explanation isn't available for this decision.",
-                    icon=":material/info:")
+            html_block('<div class="cc-label">Why this team</div><div '
+                       'class="cc-muted">No explanation is available for '
+                       'this decision.</div>')
             return
 
-        source = ("Written by AI · validated" if expl.source == "llm"
-                  else "Validated explanation")
-        html_block(f'<div class="cc-row"><div class="cc-card-title">Why this '
-                   f'team?</div><span class="cc-pill cc-pill-indigo">'
-                   f'{ICON_SHIELD}{source}</span></div>')
-        st.write(expl.consumer_summary)
+        source = ("AI-written" if expl.source == "llm" else "Standard wording")
         phrases = _phrases(entry["record"])
+        parts = ['<div class="cc-why"><div class="cc-label">Why this team</div>'
+                 f'<p>{esc(expl.consumer_summary)}</p>']
         if phrases:
-            html_block('<div class="cc-label">Phrases that drove the decision'
-                       '</div>' + "".join(f'<span class="cc-chip">{esc(p)}'
-                                          f'</span>' for p in phrases))
-        st.caption("Every fact shown is checked against the decision record. "
-                   "Covers the main routing model (Improved Model 1).")
+            parts.append('<div class="cc-label">Phrases that drove the '
+                         'decision</div><div class="cc-excerpt">'
+                         + highlight(record["complaint_text"], phrases)
+                         + '</div>')
+        parts.append(f'<div class="cc-src">{theme.ICON_CHECK}{source} · every '
+                     f'statement checked against the decision record</div></div>')
+        html_block("".join(parts))
         if entry.get("not_saved"):
             st.caption("Explanation not saved.")
 
@@ -543,39 +357,56 @@ def render_why_panel(record: dict, prediction: dict) -> None:
                     st.markdown(f"- {name}: {d.contribution:+.3f}")
 
 
+def empty_preview() -> str:
+    """A greyed-out result card, so the layout is visible before routing."""
+    bars = "".join(
+        f'<div class="cc-bar-row{" top" if i == 0 else ""}"><div '
+        f'class="cc-ghost-line" style="width:{w}%"></div><div class="cc-track">'
+        f'<div class="cc-fill" style="width:{f}%"></div></div><span '
+        f'class="cc-bar-val">—</span></div>'
+        for i, (w, f) in enumerate([(70, 80), (52, 18), (44, 8)]))
+    return (
+        '<div class="cc-ghost"><div class="cc-result-top"><div class="cc-team">'
+        '<div class="cc-avatar">··</div><div><div class="cc-team-label">'
+        'Sent to</div><div class="cc-team-name">Team name</div>'
+        '<div class="cc-meta"><span class="cc-status">Status</span>'
+        '<span class="cc-id">CC-······</span></div></div></div>'
+        + theme.gauge(0.0).replace("<b>0%</b>", "<b>—</b>") +
+        '</div><div class="cc-label">Likely issues</div>' + bars
+        + '<div class="cc-label">Why this team</div>'
+          '<div class="cc-ghost-line" style="width:96%"></div>'
+          '<div class="cc-ghost-line" style="width:88%"></div>'
+          '<div class="cc-ghost-line" style="width:60%"></div></div>'
+          '<div class="cc-ghost-cap">Route a complaint to see the team, '
+          'confidence, tracking ID and the reasoning.</div>')
+
+
 def render_single_tab() -> None:
-    intro("New complaint", "Route a single complaint",
+    intro("Customer complaint",
           "Paste the customer's words as written. ClariCase hides personal "
           "details, picks the team and issue, and explains why.")
-    left, right = st.columns([1.1, 1], gap="large")
+    left, right = st.columns([1, 1.05], gap="medium")
 
     with left:
         with st.container(key="card_composer"):
-            html_block('<div class="cc-card-title" style="margin-bottom:10px">'
-                       'Complaint details</div>')
+            html_block(panel_title("Complaint"))
             with st.form("complaint", border=False):
                 st.text_area(
-                    "What happened?", key="complaint_text", height=220,
+                    "What happened?", key="complaint_text", height=250,
+                    label_visibility="collapsed",
                     placeholder="For example: I was charged an overdraft fee "
                                 "even though I had enough money in my account. "
                                 "I'd like the fee refunded.")
-                st.caption(":material/lock: Account, card and phone numbers "
-                           "are replaced with XXXX before anything is saved.")
-                st.form_submit_button("Route complaint", type="primary",
-                                      icon=":material/send:",
-                                      on_click=handle_submit, width="stretch")
-        html_block("""
-<div class="cc-steps">
-  <div class="cc-step"><div class="cc-step-num">01</div>
-    <div class="cc-step-title">Mask</div>
-    <div class="cc-step-text">Personal details hidden first.</div></div>
-  <div class="cc-step"><div class="cc-step-num">02</div>
-    <div class="cc-step-title">Route</div>
-    <div class="cc-step-text">Team and issue, with confidence.</div></div>
-  <div class="cc-step"><div class="cc-step-num">03</div>
-    <div class="cc-step-title">Explain</div>
-    <div class="cc-step-text">A checked reason for every decision.</div></div>
-</div>""")
+                note, btn = st.columns([1.4, 1], vertical_alignment="center")
+                with note:
+                    html_block(f'<div class="cc-note">{theme.ICON_LOCK}<span>'
+                               f'Personal details become <span class="cc-x">'
+                               f'XXXX</span> before saving</span></div>')
+                with btn:
+                    st.form_submit_button("Route", type="primary",
+                                          icon=":material/arrow_forward:",
+                                          on_click=handle_submit,
+                                          width="stretch")
 
     with right:
         pending = st.session_state.pop("pending_text", None)
@@ -585,22 +416,19 @@ def render_single_tab() -> None:
         result = st.session_state.get("submit_result")
         if result is None:
             with st.container(key="card_empty"):
-                html_block(f'<div class="cc-empty"><div class="cc-empty-icon">'
-                           f'{ICON_ROUTE}</div><div class="cc-card-title">'
-                           f'Your routing decision appears here</div>'
-                           f'<div class="cc-muted" style="margin-top:6px">'
-                           f'Team, issue, confidence, a tracking ID and the '
-                           f'reason behind it.</div></div>')
+                html_block(empty_preview())
         elif result["kind"] == "too_short":
-            st.warning(f"Please describe the complaint in at least {MIN_WORDS} "
-                       f"words so it can be routed correctly.",
-                       icon=":material/info:")
+            with st.container(key="card_short"):
+                st.warning(f"Please describe the complaint in at least "
+                           f"{MIN_WORDS} words so it can be routed correctly.")
         elif result["kind"] == "error":
-            st.error("We couldn't save this complaint. Please try again in a "
-                     "moment.", icon=":material/error:")
+            with st.container(key="card_error"):
+                st.error("We couldn't save this complaint. Please try again "
+                         "in a moment.")
         else:
-            render_result(result["record"], result["prediction"])
-            render_why_panel(result["record"], result["prediction"])
+            with st.container(key="card_result"):
+                render_result(result["record"], result["prediction"])
+                render_why_panel(result["record"], result["prediction"])
 
 
 # ---------------------------------------------------------------- bulk
@@ -608,14 +436,10 @@ def stepper(current: int) -> str:
     names = ("Upload", "Map columns", "Review results", "Export")
     items = []
     for i, name in enumerate(names, 1):
-        if i < current:
-            items.append(f'<li class="done"><span>{ICON_CHECK}</span>{name}</li>')
-        elif i == current:
-            items.append(f'<li class="now" aria-current="step"><span>{i}</span>'
-                         f'{name}</li>')
-        else:
-            items.append(f'<li><span>{i}</span>{name}</li>')
-    return f'<ol class="cc-stepper" aria-label="Progress">{"".join(items)}</ol>'
+        state = "done" if i < current else "now" if i == current else ""
+        current_attr = ' aria-current="step"' if i == current else ""
+        items.append(f'<li class="{state}"{current_attr}>{i}. {name}</li>')
+    return f'<ol class="cc-crumbs" aria-label="Progress">{"".join(items)}</ol>'
 
 
 def run_bulk(df: pd.DataFrame, text_col: str, ref_col: str | None) -> dict:
@@ -655,37 +479,26 @@ def render_bulk_summary(run: dict) -> None:
     results = run["results"]
     s = bulk.summarise(results)
     auto_pct = f"{s['auto'] / s['routed']:.0%} of routed" if s["routed"] else "—"
-    team_total = len(s["teams"])
     with st.container(key="card_summary"):
         html_block(
-            f'<div class="cc-row"><div class="cc-card-title">Batch summary</div>'
-            f'<span class="cc-muted">Processed in {run["elapsed"]:.1f} s</span>'
-            f'</div><div class="cc-kpis">'
-            f'<div class="cc-kpi"><div class="cc-muted">Routed</div>'
-            f'<div class="cc-kpi-num">{s["routed"]:,}</div><div class="cc-muted">'
-            f'of {run["total"]:,} rows</div></div>'
-            f'<div class="cc-kpi"><div class="cc-muted">Auto-routed</div>'
-            f'<div class="cc-kpi-num" style="color:#166534">{s["auto"]:,}</div>'
-            f'<div class="cc-muted">{auto_pct}</div></div>'
-            f'<div class="cc-kpi"><div class="cc-muted">Needs review</div>'
-            f'<div class="cc-kpi-num" style="color:#92400E">{s["review"]:,}</div>'
-            f'<div class="cc-muted">for a specialist</div></div>'
-            f'<div class="cc-kpi"><div class="cc-muted">Teams involved</div>'
-            f'<div class="cc-kpi-num">{team_total}</div><div class="cc-muted">'
-            f'of 11</div></div></div>')
+            panel_title("Batch summary", f"Processed in {run['elapsed']:.1f} s")
+            + '<div class="cc-stats" style="margin-top:14px">'
+            + theme.stat("Routed", f"{s['routed']:,}", f"of {run['total']:,} rows")
+            + theme.stat("Auto-routed", f"{s['auto']:,}", auto_pct)
+            + theme.stat("Needs review", f"{s['review']:,}", "for a specialist")
+            + theme.stat("Teams", f"{len(s['teams'])}", "of 11")
+            + '</div>')
         if s["teams"]:
             top = s["teams"][0][1]
-            shown = s["teams"][:6]
             rows = []
-            for name, n in shown:
+            for name, n in s["teams"][:6]:
                 w = round(n / top * 100)
                 rows.append(
                     f'<div class="cc-bar-row" style="grid-template-columns:'
                     f'minmax(0,240px) minmax(0,1fr) 48px"><span '
                     f'class="cc-bar-name">{esc(name)}</span><div '
                     f'class="cc-track"><div class="cc-fill" style="width:{w}%">'
-                    f'</div></div><span class="cc-bar-val" style="font-weight:'
-                    f'600;color:#17162E">{n:,}</span></div>')
+                    f'</div></div><span class="cc-bar-val">{n:,}</span></div>')
             rest = sum(n for _, n in s["teams"][6:])
             if rest:
                 rows.append(f'<div class="cc-muted">Other teams: {rest:,}</div>')
@@ -698,12 +511,13 @@ def render_bulk_results(run: dict) -> None:
     with st.container(key="card_results"):
         head, actions = st.columns([1, 1], vertical_alignment="center")
         with head:
-            html_block('<div class="cc-card-title">Results</div>')
+            html_block('<div class="cc-ph" style="border:0;padding:0">Results'
+                       '</div>')
         with actions:
             st.download_button("Export CSV", bulk.export_csv(results),
                                file_name="claricase_routed.csv",
                                mime="text/csv", type="primary",
-                               icon=":material/download:", width="stretch")
+                               width="stretch")
         f_col, q_col = st.columns([1.2, 1], vertical_alignment="bottom")
         with f_col:
             options = {f"All {s['routed']:,}": "all",
@@ -719,7 +533,7 @@ def render_bulk_results(run: dict) -> None:
         wanted = options.get(choice or list(options)[0], "all")
         df = pd.DataFrame(results)
         if df.empty:
-            st.info("No rows were routed.", icon=":material/info:")
+            st.info("No rows were routed.")
             return
         if wanted != "all":
             df = df[df["status"] == wanted]
@@ -755,14 +569,14 @@ def render_bulk_results(run: dict) -> None:
 def render_bulk_tab() -> None:
     head, link = st.columns([3, 1], vertical_alignment="bottom")
     with head:
-        intro("Batch", "Route complaints in bulk",
+        intro("Bulk upload",
               f"Upload a CSV with one complaint per row (up to "
               f"{bulk.MAX_ROWS:,}). Every row is masked, routed and given a "
               f"tracking ID. Low-confidence rows are marked for review.")
     with link:
         st.download_button("CSV template", bulk.TEMPLATE_CSV,
                            file_name="claricase_template.csv", mime="text/csv",
-                           icon=":material/description:", width="stretch")
+                           width="stretch")
 
     types = ["csv"] + (["xlsx"] if bulk.excel_supported() else [])
     upload = st.session_state.get("bulk_upload")
@@ -776,8 +590,7 @@ def render_bulk_tab() -> None:
     left, right = st.columns([1, 1.6], gap="large")
     with left:
         with st.container(key="card_file"):
-            html_block('<div class="cc-card-title" style="margin-bottom:8px">'
-                       'File</div>')
+            html_block(panel_title("File"))
             st.file_uploader("Upload complaints", type=types, key="bulk_upload",
                              label_visibility="collapsed")
             if upload is None:
@@ -789,14 +602,13 @@ def render_bulk_tab() -> None:
                 try:
                     df = bulk.read_upload(upload.name, upload.getvalue())
                 except bulk.BulkError as exc:
-                    st.error(str(exc), icon=":material/error:")
+                    st.error(str(exc))
                     df = None
             if df is not None:
-                html_block(f'<div class="cc-file">{ICON_FILE}<div><div '
-                           f'style="font-weight:600;font-size:14px">'
-                           f'{esc(upload.name)}</div><div class="cc-muted">'
-                           f'{len(df):,} rows · {len(df.columns)} columns</div>'
-                           f'</div></div>')
+                html_block(f'<div class="cc-muted"><span class="cc-mono" '
+                           f'style="color:{theme.INK}">{esc(upload.name)}</span>'
+                           f' · {len(df):,} rows · {len(df.columns)} columns'
+                           f'</div>')
                 cols = list(df.columns)
                 guess = bulk.guess_text_column(df)
                 text_col = st.selectbox("Complaint text column", cols,
@@ -808,7 +620,7 @@ def render_bulk_tab() -> None:
                     index=ref_opts.index(ref_guess) if ref_guess else 0)
                 ref_col = None if ref_choice == "(none)" else ref_choice
                 if st.button(f"Route {len(df):,} complaints", type="primary",
-                             icon=":material/send:", width="stretch"):
+                             width="stretch"):
                     out = run_bulk(df, text_col, ref_col)
                     out["sig"] = sig
                     st.session_state["bulk_run"] = out
@@ -817,23 +629,20 @@ def render_bulk_tab() -> None:
                     if run["skipped"]:
                         n = len(run["skipped"])
                         st.warning(f"{n:,} row{'s' if n != 1 else ''} skipped: "
-                                   f"fewer than {MIN_WORDS} words.",
-                                   icon=":material/info:")
+                                   f"fewer than {MIN_WORDS} words.")
                     if run["not_saved"]:
                         st.error(f"{run['not_saved']:,} complaints couldn't be "
                                  f"saved and have no tracking ID. Route the "
-                                 f"file again to retry.",
-                                 icon=":material/error:")
+                                 f"file again to retry.")
 
     with right:
         if run is None:
             with st.container(key="card_bulk_empty"):
-                html_block(f'<div class="cc-empty"><div class="cc-empty-icon">'
-                           f'{ICON_ROUTE}</div><div class="cc-card-title">'
-                           f'Results appear here</div><div class="cc-muted" '
-                           f'style="margin-top:6px">A summary by team, every '
-                           f'routed row with its tracking ID, and a CSV '
-                           f'export.</div></div>')
+                html_block(panel_title("Batch summary")
+                           + '<div class="cc-empty">No file routed yet. A '
+                             'summary by team, every routed row with its '
+                             'tracking ID, and a CSV export will appear '
+                             'here.</div>')
         else:
             render_bulk_summary(run)
 
@@ -860,7 +669,7 @@ def handle_track() -> None:
 
 
 def timeline(found: dict, submitted: str) -> str:
-    done, todo = "#166534", "#C9C9D6"
+    done, todo = theme.ACCENT, theme.LINE
     route = found.get("route")
     team = esc(found["team_name"])
     conf = found.get("confidence")
@@ -869,6 +678,13 @@ def timeline(found: dict, submitted: str) -> str:
              ("Personal details masked", "Before saving", done)]
     if route == "auto":
         steps += [("Auto-routed", conf_txt, done),
+                  (f"With the {team}", "Awaiting the team's response", done)]
+    elif route == "review" and found.get("status") == "Assigned":
+        reviewed = found.get("reviewed_at")
+        when = (f"{datetime.fromisoformat(str(reviewed)):%b %d, %Y, %H:%M} UTC"
+                if reviewed else "")
+        steps += [("Sent for specialist review", conf_txt, done),
+                  ("Reviewed by a specialist", when, done),
                   (f"With the {team}", "Awaiting the team's response", done)]
     elif route == "review":
         steps += [("Sent for specialist review", conf_txt, done),
@@ -879,11 +695,10 @@ def timeline(found: dict, submitted: str) -> str:
     for i, (title, sub, color) in enumerate(steps):
         last = i == len(steps) - 1
         line = "transparent" if last else (
-            "#BBE5C8" if steps[i + 1][2] == done else "#E4E4EE")
-        mark = ICON_CHECK if color == done else ""
+            theme.ACCENT_SOFT if steps[i + 1][2] == done else theme.LINE)
         items.append(
             f'<li><div class="cc-tl-rail"><span class="cc-tl-dot" '
-            f'style="background:{color}">{mark}</span><span class="cc-tl-line" '
+            f'style="background:{color}"></span><span class="cc-tl-line" '
             f'style="background:{line}"></span></div><div class="cc-tl-body">'
             f'<div class="cc-tl-title">{title}</div><div class="cc-muted">'
             f'{esc(sub)}</div></div></li>')
@@ -891,74 +706,60 @@ def timeline(found: dict, submitted: str) -> str:
 
 
 def render_track_tab() -> None:
-    _, mid, _ = st.columns([1, 3, 1])
-    with mid:
-        html_block('<div style="text-align:center"><div class="cc-eyebrow">'
-                   'Status</div><div class="cc-h1">Track a complaint</div>'
-                   '<div class="cc-sub" style="margin-left:auto;margin-right:'
-                   'auto">Enter the tracking ID shown after submission or in '
-                   'your bulk export.</div></div>')
-        with st.container(key="card_track_form"):
-            with st.form("track", border=False):
-                c1, c2 = st.columns([3, 1], vertical_alignment="bottom")
-                with c1:
-                    st.text_input("Tracking ID", key="tracking_input",
-                                  placeholder="CC-XXXXXX",
-                                  label_visibility="collapsed")
-                with c2:
-                    st.form_submit_button("Check status", type="primary",
-                                          icon=":material/search:",
-                                          on_click=handle_track,
-                                          width="stretch")
+    intro("Track a complaint",
+          "Enter the tracking ID shown after submission or in the bulk export.")
+    form_col, _ = st.columns([1.2, 1])
+    with form_col, st.container(key="card_track_form"):
+        with st.form("track", border=False):
+            c1, c2 = st.columns([3, 1], vertical_alignment="bottom")
+            with c1:
+                st.text_input("Tracking ID", key="tracking_input",
+                              placeholder="CC-XXXXXX",
+                              label_visibility="collapsed")
+            with c2:
+                st.form_submit_button("Look up", type="primary",
+                                      on_click=handle_track, width="stretch")
 
-        tracked = st.session_state.get("track_result")
-        if tracked is None:
-            return
-        if tracked["kind"] == "error":
-            st.error("We couldn't look up this complaint. Please try again in "
-                     "a moment.", icon=":material/error:")
-            return
-        if tracked["kind"] == "not_found":
-            st.error(f"No complaint found with tracking ID {tracked['id']}.",
-                     icon=":material/search_off:")
-            return
+    tracked = st.session_state.get("track_result")
+    if tracked is None:
+        return
+    if tracked["kind"] == "error":
+        st.error("We couldn't look up this complaint. Please try again in a "
+                 "moment.")
+        return
+    if tracked["kind"] == "not_found":
+        st.error(f"No complaint found with tracking ID {tracked['id']}.")
+        return
 
-        found = tracked["row"]
-        submitted_at = datetime.fromisoformat(found["submitted_at"])
-        submitted = f"{submitted_at:%B %d, %Y at %H:%M} UTC"
-        with st.container(key="card_track_result"):
-            html_block(
-                f'<div class="cc-row"><div><div class="cc-card-title" '
-                f'style="font-family:ui-monospace,Menlo,monospace;'
-                f'letter-spacing:0.04em">{esc(found["tracking_id"])}</div>'
-                f'<div class="cc-muted" style="margin-top:2px">Submitted '
-                f'{submitted}</div></div>{badge(found["status"])}</div>'
-                f'<hr style="border:0;border-top:1px solid #EEEEF4;'
-                f'margin:18px 0">')
-            t_col, d_col = st.columns([1, 1.3], gap="large")
-            with t_col:
-                html_block(timeline(found, submitted))
-            with d_col:
-                team_label = ("Most likely team" if found.get("route") == "review"
-                              else "Team")
-                parts = [f'<div class="cc-label" style="margin-top:0">'
-                         f'{team_label}</div><div class="cc-team-name" '
-                         f'style="font-size:20px">{esc(found["team_name"])}'
-                         f'</div>']
-                if found.get("issue_label"):
-                    parts.append(f'<div class="cc-label">Issue</div><div '
-                                 f'style="font-size:15px">'
-                                 f'{esc(issue_name(found["issue_label"]))}</div>')
-                html_block("".join(parts))
-                stored = found.get("explanation")
-                summary = stored.get("consumer_summary") \
-                    if isinstance(stored, dict) else None
-                html_block('<div class="cc-label">Why this team?</div>')
-                st.write(summary or "No explanation is available for this "
-                                    "complaint.")
-                with st.expander("Complaint text"):
-                    st.write(found["complaint_text"])
-                    st.caption("Personal details are shown as XXXX.")
+    found = tracked["row"]
+    submitted_at = datetime.fromisoformat(found["submitted_at"])
+    submitted = f"{submitted_at:%b %d, %Y, %H:%M} UTC"
+    with st.container(key="card_track_result"):
+        html_block(f'<div class="cc-ph"><span class="cc-id">'
+                   f'{esc(found["tracking_id"])}</span><span>Submitted '
+                   f'{submitted}</span></div>')
+        t_col, d_col = st.columns([1, 1.4], gap="large")
+        with t_col:
+            html_block('<div class="cc-label">History</div>'
+                       + timeline(found, submitted))
+        with d_col:
+            team_label = ("Most likely team"
+                          if found.get("status") == "Under review" else "Team")
+            rows = [("Status", status_mark(found["status"])),
+                    (team_label, f'<b>{esc(found["team_name"])}</b>')]
+            if found.get("issue_label"):
+                rows.append(("Issue", esc(issue_name(found["issue_label"]))))
+            items = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows)
+            html_block(f'<dl class="cc-kv" style="margin-top:14px">{items}</dl>')
+            stored = found.get("explanation")
+            summary = stored.get("consumer_summary") \
+                if isinstance(stored, dict) else None
+            html_block('<div class="cc-label">Why this team</div>')
+            st.write(summary or "No explanation is available for this "
+                                "complaint.")
+            with st.expander("Complaint text"):
+                st.write(found["complaint_text"])
+                st.caption("Personal details are shown as XXXX.")
 
 
 # ---------------------------------------------------------------- page
@@ -969,15 +770,10 @@ def reset_on_tab_change() -> None:
     st.session_state["tracking_input"] = ""
 
 
-html_block(f'<div class="cc-top"><div class="cc-logo"><div class="cc-mark">C'
-           f'</div><span class="cc-word">ClariCase</span></div>'
-           f'<span class="cc-pill cc-pill-green">{ICON_LOCK}Personal details '
-           f'masked</span></div>')
+html_block(theme.top_bar())
 
 single_tab, bulk_tab, track_tab = st.tabs(
-    [":material/edit_note: Single complaint",
-     ":material/upload_file: Bulk upload",
-     ":material/search: Track"],
+    ["Single complaint", "Bulk upload", "Track"],
     key="active_tab", on_change=reset_on_tab_change)
 
 with single_tab:
@@ -987,9 +783,7 @@ with bulk_tab:
 with track_tab:
     render_track_tab()
 
-footer = ("Clear-cut complaints are routed automatically; the rest go to a "
-          "specialist for review.")
-if not store.persistent:
-    footer += " · Local mode: complaints are saved on this machine only."
-html_block(f'<div class="cc-footer"><span>{footer}</span><span>ClariCase'
-           f'</span></div>')
+html_block('<div class="cc-footer"><span>Clear-cut complaints are routed '
+           'automatically; the rest go to a specialist for review.</span>'
+           f'<span>{"" if store.persistent else "Local mode: complaints are "
+                    "saved on this machine only · "}ClariCase</span></div>')

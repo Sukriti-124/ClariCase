@@ -1,13 +1,16 @@
 [theme]
 base = "light"
-primaryColor = "#4338CA"
-backgroundColor = "#F6F6FA"
-secondaryBackgroundColor = "#EEEEF4"
-textColor = "#17162E"
-borderColor = "#E4E4EE"
-baseRadius = "0.75rem"
-font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-headingFont = "Space Grotesk:https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap"
+primaryColor = "#0E8C7E"
+backgroundColor = "#F2F3F4"
+secondaryBackgroundColor = "#EDF1F4"
+textColor = "#17202A"
+borderColor = "#DDE3E8"
+baseRadius = "0.375rem"
+font = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+headingFont = "IBM Plex Sans:https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+codeFont = "IBM Plex Mono:https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap"
 
 [client]
 toolbarMode = "minimal"
+# The admin dashboard (pages/admin.py, at /admin) is not linked for users.
+showSidebarNavigation = false
